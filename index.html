@@ -288,7 +288,7 @@ tr.cl td{background:rgba(224,184,90,.08)}
 <div class="term hide" id="term">
   <section class="panel p-chart">
     <div class="phead"><span class="ptitle">UST500 · <span id="cint"></span></span><span class="ohlc" id="ohlc"></span>
-      <span class="legend"><span><i style="background:var(--gold)"></i>Spot index</span><span><i style="background:repeating-linear-gradient(90deg,#9DB0D8 0 4px,transparent 4px 7px)"></i>Fair value</span><span><i style="background:rgba(255,255,255,.06);height:9px"></i>Overnight</span></span></div>
+      <span class="legend"><span><b class="up">▲B</b> / <b class="dn">▼S</b> your trades</span><span><i style="background:var(--gold)"></i>Spot index</span><span><i style="background:repeating-linear-gradient(90deg,#9DB0D8 0 4px,transparent 4px 7px)"></i>Fair value</span><span><i style="background:rgba(255,255,255,.06);height:9px"></i>Overnight</span></span></div>
     <div class="chartbox" id="chartbox"><svg id="chart"></svg><div class="overlay hide" id="overlay"></div></div>
     <div class="volbox" id="volbox"><svg id="vol"></svg></div>
     <div class="sig">
@@ -486,6 +486,12 @@ function chart(){
   cs.forEach((c,i)=>{const upc=c[3]>=c[0],col=upc?"#2EBD85":"#F0616D",yo=y(c[0]),yc=y(c[3]);
     g+=`<line x1="${x(i)}" x2="${x(i)}" y1="${y(c[1])}" y2="${y(c[2])}" stroke="${col}" stroke-width="1"/>
       <rect x="${x(i)-bw/2}" y="${Math.min(yo,yc)}" width="${bw}" height="${Math.max(Math.abs(yc-yo),1.2)}" fill="${col}"/>`});
+  // your own buys (B, below the price) and sells (S, above it), added up per candle
+  const mine={};(S.me.fills||[]).forEach(f=>{const k=f[0]+f[3];(mine[k]=mine[k]||{i:f[0],w:f[3],q:0,pq:0}).q+=f[2];mine[k].pq+=f[1]*f[2]});
+  Object.values(mine).forEach(m=>{if(m.i>=n)return;const px=x(m.i),py=y(m.pq/m.q),b=m.w==="B",c=b?"#2EBD85":"#F0616D",d=b?1:-1;
+    g+=`<polygon points="${px},${py+d*4} ${px-6},${py+d*13} ${px+6},${py+d*13}" fill="${c}" stroke="#040A1C" stroke-width="1"/>
+      <rect x="${px-13}" y="${b?py+15:py-30}" width="26" height="15" rx="3" fill="${c}"/>
+      <text x="${px}" y="${b?py+26:py-19}" font-size="10" font-weight="800" fill="#fff" text-anchor="middle">${m.w}${m.q}</text>`});
   if(hover!=null&&hover<n)g+=`<line x1="${x(hover)}" x2="${x(hover)}" y1="${T}" y2="${H-B}" stroke="#8EA0C8" stroke-dasharray="2 3"/>`;
   // price tags on the axis: futures (mark) and spot
   const last=cs[n-1],mk=S.signal.price,ys=y(S.spot);let yf=y(mk);

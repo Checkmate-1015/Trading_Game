@@ -264,6 +264,7 @@ class Game:
         self.checks = []                        # end-of-session proof that profits sum to zero
         self.pos_at_news = {}                   # session index -> every account's position when the news hit
         self.ends = []                          # every account's profit or loss at the end of each session
+        self.fills = {}                         # seat -> [candle, price, contracts, "B" or "S"] for each fill
         self.next_refresh = math.inf            # next noise step; set when the game starts
         self.new_phase()
         self.house_quote()
@@ -570,6 +571,11 @@ class Game:
         for x in self.book.tape[len(self.book.tape) - (self.book.trades - n0):]:   # this order's fills
             x["pre"] = not self.news_out
             self.candle_mark(x["p"], x["q"], side == "B")
+            fills = self.__dict__.setdefault("fills", {})   # each player's own buys and sells, for their chart
+            for who, way in ((x["b"], "B"), (x["s"], "S")):
+                if who != HOUSE:
+                    fills.setdefault(who, []).append([len(self.candles) - 1, x["p"], x["q"], way])
+                    del fills[who][:-300]
         self.flow["buy" if side == "B" else "sell"] += r["filled"]
         if r["filled"]:
             self.house_quote()                  # the house leans on the flow at once
@@ -697,6 +703,7 @@ class Game:
             "clue": clue, "cluesSoFar": self.clue_count.get(seat, 0),
             "myFair": self.fair() + (clue["value"] if clue and not clue["public"] else 0),
             "report": self.report(seat), "introDone": seat in self.intro,
+            "fills": getattr(self, "fills", {}).get(seat, []),
         }
         out = self.clock()
         out.update({
