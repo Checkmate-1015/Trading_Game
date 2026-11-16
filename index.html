@@ -274,6 +274,8 @@ tr.cl td{background:rgba(224,184,90,.08)}
   </div>
 </header>
 
+<div id="offline" class="joinbox hide"><div class="panel"><h2>Can't Reach The Game Server</h2><p>This page needs the game server. Opened from GitHub it can't work: GitHub only stores the code. Use the game link from your game master.</p><p class="small" id="offmsg"></p></div></div>
+
 <div id="join" class="joinbox hide">
   <div class="panel">
     <h2>Join The Game</h2>
@@ -860,7 +862,10 @@ function render(s){
 }
 setType("market");setQty(1);
 
-const poll=()=>fetch(`/api/state?token=${token}`).then(r=>r.json()).then(s=>{render(s);if(!$("intro").classList.contains("hide"))introStatus()}).catch(()=>{});
+let fails=0;
+const getJSON=url=>fetch(url).then(async r=>{const j=await r.json().catch(()=>null);if(!r.ok||!j)throw new Error(j&&j.msg||`The server answered ${r.status}.`);return j});
+const poll=()=>getJSON(`/api/state?token=${token}`).then(s=>{fails=0;$("offline").classList.add("hide");render(s);if(!$("intro").classList.contains("hide"))introStatus()})
+  .catch(e=>{if(++fails>=3||!S){$("offline").classList.remove("hide");$("join").classList.add("hide");$("term").classList.add("hide");$("offmsg").textContent=e.message}});
 poll();setInterval(poll,1000);
 </script>
 </body>

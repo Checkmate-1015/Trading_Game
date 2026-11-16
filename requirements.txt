@@ -1,0 +1,3 @@
+# Only used on Vercel when its Redis database gives a redis:// address. Running the game on your
+# own computer needs nothing from this file.
+redis>=5,<7

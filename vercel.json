@@ -1,0 +1,16 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/api/:route(state|overview|monitor|join|intro|leave|order|cancel|admin)",
+      "destination": "/api/index?route=:route"
+    }
+  ],
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 15,
+      "excludeFiles": "{tests.py,render.yaml,README.md,*.html}"
+    }
+  }
+}
