@@ -3,119 +3,177 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Futures Trading Game: Market Overview</title>
+<title>UST500 Futures · Projector</title>
 <style>
-:root{--mast:#073B3A;--mast-t:#F4EDDF;--mast-s:#BAD0CA;--bg:#FAF7F0;--card:#FFFDF8;--band:#F1ECE0;
---rule:#E5DDCD;--rule2:#D4C9B2;--teal:#00857C;--text:#11302E;--sub:#586660;--up:#1B7A5A;--dn:#B0432D;--gold:#A07A2C}
+:root{--bg:#050B1E;--panel:#0A1530;--panel2:#0F1E42;--line:#172A55;--line2:#22386B;--text:#E6ECFA;--sub:#8EA0C8;--mute:#5A6B93;
+--blue:#3D8BFF;--up:#2EBD85;--dn:#F0616D;--gold:#E0B85A;--upbg:rgba(46,189,133,.15);--dnbg:rgba(240,97,109,.15)}
 *{box-sizing:border-box}
-html,body{height:100%}
-body{margin:0;background:var(--bg);color:var(--text);font:400 18px/1.4 "Avenir Next",system-ui,sans-serif;display:flex;flex-direction:column}
-.mast{background:var(--mast);padding:20px 36px;display:flex;align-items:center;gap:30px;flex-wrap:wrap}
-.mast h1{font:400 34px Optima,serif;color:var(--mast-t);margin:0}
-.mast p{margin:2px 0 0;color:var(--mast-s);font-size:17px}
-.clock{margin-left:auto;text-align:right;color:var(--mast-s);font-size:17px;white-space:nowrap}
-.clock b{display:block;font:400 44px Optima,serif;color:var(--mast-t);line-height:1.05}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;padding:22px 36px 0}
-.stat{background:var(--card);border:1px solid var(--rule);border-radius:12px;padding:16px 20px}
-.stat span{color:var(--sub);font-size:16px;white-space:nowrap}
-.stat b{display:block;font:400 46px Optima,serif;line-height:1.1;white-space:nowrap}
-.stat i{font-style:normal;color:var(--sub);font-size:15px;white-space:nowrap}
-.body{flex:1;display:grid;grid-template-columns:2.6fr 1fr;gap:18px;padding:18px 36px 14px;min-height:0}
-.card{background:var(--card);border:1px solid var(--rule);border-radius:12px;padding:18px 20px;min-height:0;display:flex;flex-direction:column}
-.sec{font:400 22px Optima,serif;color:var(--teal);margin:0 0 8px}
-svg{width:100%;flex:1;min-height:0}
-.news{overflow:hidden;display:flex;flex-direction:column;gap:10px}
-.item{border-bottom:1px solid var(--rule);padding-bottom:10px}
-.item .when{color:var(--sub);font-size:16px}
-.item .move{font:400 34px Optima,serif;line-height:1.15}
-.item .note{color:var(--sub);font-size:16px}
-.item.new{background:var(--band);border-radius:8px;padding:10px 12px;border-bottom:0}
-.up{color:var(--up)}.dn{color:var(--dn)}
-footer{color:var(--sub);font-size:14px;padding:0 36px 14px}
-@media(max-width:1000px){.stats{grid-template-columns:repeat(2,1fr)}.body{grid-template-columns:1fr}}
+html,body{height:100%;background:var(--bg)}
+body{margin:0;color:var(--text);font:400 16px/1.4 "Inter","Segoe UI",system-ui,sans-serif;font-variant-numeric:tabular-nums;display:flex;flex-direction:column}
+.up{color:var(--up)}.dn{color:var(--dn)}.gold{color:var(--gold)}.mut{color:var(--sub)}
+.top{display:flex;align-items:center;gap:30px;padding:14px 28px;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{font-weight:800;color:var(--blue);letter-spacing:.02em;font-size:18px}
+.sym b{display:block;font-size:26px;line-height:1.05}.sym span{color:var(--sub);font-size:14px}
+.px b{display:block;font-size:46px;font-weight:600;line-height:1}.px span{color:var(--sub);font-size:14px}
+.sess{font-size:20px;font-weight:600}.sess span{display:block;color:var(--sub);font-size:14px;font-weight:400}
+.clock{margin-left:auto;text-align:right}
+.clock span{color:var(--sub);font-size:15px}
+.clock b{display:block;font-size:52px;font-weight:600;line-height:1}
+.prog{height:6px;background:var(--line2);border-radius:3px;position:relative;margin-top:6px;width:240px;margin-left:auto}
+.prog i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:var(--blue);transition:width .9s linear}
+.prog u{position:absolute;left:50%;top:-4px;bottom:-4px;width:3px;margin-left:-1.5px;background:var(--gold)}
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;padding:12px 28px 0}
+.st{background:var(--panel);border-radius:10px;padding:12px 16px;min-width:0}
+.st>span{display:block;color:var(--sub);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+.st b{display:block;font-size:34px;font-weight:600;line-height:1.15;white-space:nowrap}
+.st i{display:block;font-style:normal;color:var(--sub);font-size:14px;white-space:nowrap}
+.gauge{position:relative;height:12px;border-radius:6px;margin-top:6px;background:linear-gradient(90deg,rgba(240,97,109,.45),rgba(255,255,255,.05) 50%,rgba(46,189,133,.45))}
+.gauge i{position:absolute;top:-2px;bottom:-2px;width:6px;margin-left:-3px;border-radius:3px;background:var(--text);transition:left .5s}
+.flow{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--panel2);margin-top:6px}
+.flow i{display:block;height:100%;transition:width .4s}
+.body{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:10px;padding:10px 28px 16px;min-height:0}
+.panel{background:var(--panel);border-radius:10px;display:flex;flex-direction:column;min-height:0;position:relative}
+.ph{display:flex;align-items:center;gap:16px;padding:10px 16px;border-bottom:1px solid var(--line);font-weight:700;font-size:16px}
+.ph .r{margin-left:auto;font-weight:400;color:var(--sub);font-size:13.5px;display:flex;gap:14px}
+.ph .r i{display:inline-block;width:16px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
+.chartbox{position:relative;flex:1;min-height:200px}.volbox{position:relative;height:110px;border-top:1px solid var(--line)}
+.chartbox svg,.volbox svg{position:absolute;inset:0;width:100%;height:100%}
+.side{display:flex;flex-direction:column;gap:10px;min-height:0}
+.news{overflow:hidden;flex:1}
+.item{display:grid;grid-template-columns:70px 1fr auto;gap:4px 12px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line)}
+.item.new{background:var(--panel2)}
+.item .w{color:var(--sub);font-size:14px;font-weight:600}
+.item .m{font-size:30px;font-weight:600}
+.item .h{font-size:13.5px;color:var(--sub);text-align:right}
+.item .h b{display:block;font-size:17px;color:var(--text)}
+.tag{font-weight:800;font-size:12px;padding:2px 8px;border-radius:4px}
+.tag.ok{background:var(--upbg);color:var(--up)}.tag.no{background:var(--dnbg);color:var(--dn)}.tag.q{background:var(--panel2);color:var(--sub)}
+table{width:100%;border-collapse:collapse}
+td{padding:7px 16px;font-size:17px;border-bottom:1px solid var(--line)}
+td:last-child{text-align:right;font-weight:600}
+.cover{position:absolute;inset:0;background:rgba(5,11,30,.8);display:flex;align-items:center;justify-content:center;z-index:3;border-radius:10px}
+.cover>div{text-align:center;max-width:90%}
+.cover h2{font-size:22px;color:var(--sub);font-weight:600;margin:0}
+.cover .url{font-size:60px;font-weight:700;color:var(--blue);margin:8px 0 18px;word-break:break-all}
+.cover .nums{display:flex;gap:16px;justify-content:center}
+.cover .nums div{background:var(--panel2);border-radius:12px;padding:14px 26px;min-width:160px}
+.cover .nums b{display:block;font-size:46px;font-weight:600}
+.cover .nums span{color:var(--sub);font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.lessons{padding:20px 26px;width:min(980px,95%)}
+.lessons h2{color:var(--text);font-size:30px;margin-bottom:6px}
+.hide{display:none!important}
+@media(max-width:1100px){.stats{grid-template-columns:repeat(2,1fr)}.body{grid-template-columns:1fr}.top{flex-wrap:wrap}}
 </style>
 </head>
 <body>
-<div class="mast">
-  <div><h1>Traders@UST Futures Trading Game</h1><p id="sub">Market overview</p></div>
-  <div class="clock"><span id="clocklabel">News In</span><b id="clock">–</b></div>
+<div class="top">
+  <div class="brand">◆ TRADERS@UST</div>
+  <div class="sym"><b>UST500</b><span>Index Futures</span></div>
+  <div class="px"><b id="px">–</b><span id="pxsub">Futures price</span></div>
+  <div class="sess" id="sess"></div>
+  <div class="clock"><span id="clocklabel">News In</span><b id="clock">–</b><div class="prog"><i id="progi"></i><u></u></div></div>
 </div>
 <div class="stats">
-  <div class="stat"><span>Last Futures Trade (Pts)</span><b id="last">–</b><i id="lastnote"></i></div>
-  <div class="stat"><span id="spotlabel">Spot Index (Pts)</span><b id="spot">–</b><i id="spotnote"></i></div>
-  <div class="stat"><span>Fair Futures (Pts)</span><b id="fair">–</b><i>Spot, plus overnight news, plus cost of carry</i></div>
-  <div class="stat"><span>Volume (Contracts)</span><b id="vol">–</b><i id="people"></i></div>
+  <div class="st"><span>Spot Index</span><b class="gold" id="spot">–</b><i id="spotnote"></i></div>
+  <div class="st"><span>Fair Value</span><b id="fair">–</b><i id="fairnote"></i></div>
+  <div class="st"><span>Futures − Fair</span><b id="gap">–</b><div class="gauge"><i id="needle"></i></div></div>
+  <div class="st"><span>Who's Taking (This Phase)</span><b id="flowv">–</b><div class="flow"><i id="flowb" style="background:var(--up)"></i><i id="flows" style="background:var(--dn)"></i></div></div>
+  <div class="st"><span>Volume</span><b id="vol">–</b><i id="people"></i></div>
 </div>
 <div class="body">
-  <div class="card">
-    <h2 class="sec">Spot Index And Last Futures Trade (Index Points)</h2>
-    <svg id="chart" viewBox="0 0 1200 520" preserveAspectRatio="none"></svg>
+  <div class="panel">
+    <div class="ph">UST500 · <span id="cint"></span><span class="r"><span><i style="background:var(--up)"></i>Futures candles</span><span><i style="background:var(--gold)"></i>Spot index</span><span><i style="background:repeating-linear-gradient(90deg,#9DB0D8 0 4px,transparent 4px 7px)"></i>Fair value</span></span></div>
+    <div class="chartbox" id="chartbox"><svg id="chart"></svg></div>
+    <div class="volbox" id="volbox"><svg id="volsvg"></svg></div>
+    <div class="cover hide" id="cover"></div>
   </div>
-  <div class="card">
-    <h2 class="sec">Recent News</h2>
-    <div class="news" id="news"></div>
+  <div class="side">
+    <div class="panel news"><div class="ph">News<span class="r">Futures hinted first?</span></div><div id="news"></div></div>
+    <div class="panel"><div class="ph">Top Five<span class="r">Profit USD</span></div><table><tbody id="top"></tbody></table></div>
   </div>
 </div>
-<footer>Shaded bands are overnight sessions: the cash market is closed and the spot index is frozen. Dashed lines mark news. Every level is a game parameter, not market data.</footer>
 
 <script>
 const $=id=>document.getElementById(id);
-const f2=n=>n==null?"None Yet":n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
-const sg=n=>(n>0?"+":n<0?"−":"")+Math.abs(n).toFixed(1);
-function chart(s){
-  const h=s.hist,W=1200,H=520,L=74,R=96,T=34,B=20,vals=h.flatMap(p=>[p[0],p[1]]).filter(v=>v!=null);
+const esc=t=>String(t).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const f2=n=>n==null?"–":n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const f1=n=>{const r=Math.abs(n)<.05?0:n;return (r>0?"+":r<0?"−":"")+Math.abs(r).toFixed(1)};
+const usd=n=>(Math.round(n)<0?"−":Math.round(n)>0?"+":"")+Math.abs(Math.round(n)).toLocaleString("en-US");
+const cls=n=>Math.round(n*100)>0?"up":Math.round(n*100)<0?"dn":"";
+const mmss=s=>{s=Math.max(Math.ceil(s),0);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
+let S=null;
+
+function chart(){
+  const box=$("chartbox"),W=box.clientWidth,H=box.clientHeight;if(!W||!H||!S)return;
+  const cs=S.candles,n=cs.length,slots=Math.max(S.candlesPerSession*S.rounds,n+2),L=10,R=92,T=34,B=28;
+  const vals=cs.flatMap(c=>[c[1],c[2],c[6],c[7]]);
   let lo=Math.min(...vals),hi=Math.max(...vals);if(hi-lo<30){const m=(hi+lo)/2;lo=m-15;hi=m+15}
-  const pad=(hi-lo)*.1;lo-=pad;hi+=pad;
-  const n=Math.max(h.length-1,1),x=i=>L+(W-L-R)*i/n,y=v=>T+(H-T-B)*(1-(v-lo)/(hi-lo));
-  let g="";
-  // session bands and labels
-  let start=0;
-  for(let i=1;i<=h.length;i++){
-    if(i===h.length||h[i][2]!==h[start][2]){
-      const r=h[start][2],x0=x(start),x1=x(Math.min(i,h.length-1)),night=r%2===1;
-      if(night)g+=`<rect x="${x0}" y="${T}" width="${Math.max(x1-x0,0)}" height="${H-T-B}" fill="#F1ECE0"/>`;
-      if(x1-x0>70)g+=`<text x="${(x0+x1)/2}" y="${T-12}" text-anchor="middle" font-size="16" fill="#586660">Day ${Math.floor(r/2)+1} ${night?"Night":"Cash"}</text>`;
-      start=i;
-    }
-  }
-  for(let i=0;i<5;i++){const v=lo+(hi-lo)*i/4;
-    g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#E5DDCD"/><text x="${L-10}" y="${y(v)+6}" text-anchor="end" font-size="17" fill="#586660">${Math.round(v).toLocaleString("en-US")}</text>`}
-  // news markers
-  s.news.forEach((nw,k)=>{const i=Math.min(Math.max(nw.i??0,0),h.length-1),c=nw.shock>=0?"#1B7A5A":"#B0432D";
-    g+=`<line x1="${x(i)}" x2="${x(i)}" y1="${T}" y2="${H-B}" stroke="${c}" stroke-dasharray="5 5" stroke-width="1.5"/>
-        <text x="${x(i)+6}" y="${T+20+(k%2)*20}" font-size="16" fill="${c}">${sg(nw.shock)}</text>`});
-  const line=k=>h.map((p,i)=>p[k]==null?null:x(i).toFixed(1)+","+y(p[k]).toFixed(1)).filter(Boolean).join(" ");
-  g+=`<polyline points="${line(0)}" fill="none" stroke="#A07A2C" stroke-width="3.5" stroke-linejoin="round"/>
-      <polyline points="${line(1)}" fill="none" stroke="#00857C" stroke-width="3.5" stroke-linejoin="round"/>`;
-  // end labels, nudged apart so they never overlap
-  const end=h[h.length-1];let ys=y(end[0]),yf=end[1]==null?null:y(end[1]);
-  if(yf!=null&&Math.abs(ys-yf)<24){const m=(ys+yf)/2,up=yf<=ys;yf=m+(up?-12:12);ys=m+(up?12:-12)}
-  g+=`<text x="${W-R+8}" y="${ys+6}" font-size="18" fill="#A07A2C">Spot</text>`;
-  if(yf!=null)g+=`<text x="${W-R+8}" y="${yf+6}" font-size="18" fill="#00857C">Futures</text>`;
-  $("chart").innerHTML=g;
+  const pad=(hi-lo)*.08;lo-=pad;hi+=pad;
+  const cw=(W-L-R)/slots,x=i=>L+cw*(i+.5),y=v=>T+(H-T-B)*(1-(v-lo)/(hi-lo));
+  let g="",st=0;
+  for(let i=1;i<=n;i++){if(i===n||cs[i][8]!==cs[st][8]){const r=cs[st][8],x0=x(st)-cw/2,x1=x(i-1)+cw/2;
+    if(r%2)g+=`<rect x="${x0}" y="${T}" width="${x1-x0}" height="${H-T-B}" fill="rgba(255,255,255,.035)"/>`;
+    g+=`<text x="${x0+4}" y="${H-8}" font-size="14" fill="#5A6B93">D${Math.floor(r/2)+1} ${r%2?"☾":"☀"}</text>`;st=i}}
+  const step=[1,2,2.5,5,10,20,25,50,100].find(s=>(hi-lo)/s<=6)||200;
+  for(let v=Math.ceil(lo/step)*step;v<=hi;v+=step)g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#13224A"/><text x="${W-R+8}" y="${y(v)+5}" font-size="15" fill="#8EA0C8">${v.toLocaleString("en-US")}</text>`;
+  S.news.forEach(nw=>{const i=Math.min(Math.max(nw.i??0,0),n-1),c=nw.shock>=0?"#2EBD85":"#F0616D";
+    g+=`<line x1="${x(i)}" x2="${x(i)}" y1="${T}" y2="${H-B}" stroke="${c}" stroke-dasharray="4 5" opacity=".8"/>
+      <rect x="${x(i)-24}" y="${T-26}" width="48" height="21" rx="4" fill="${c}"/><text x="${x(i)}" y="${T-10}" font-size="14" font-weight="800" fill="#040A1C" text-anchor="middle">${f1(nw.shock)}</text>`});
+  const line=k=>cs.map((c,i)=>x(i).toFixed(1)+","+y(c[k]).toFixed(1)).join(" ");
+  g+=`<polyline points="${line(7)}" fill="none" stroke="#9DB0D8" stroke-width="1.6" stroke-dasharray="5 4" opacity=".8"/>
+    <polyline points="${line(6)}" fill="none" stroke="#E0B85A" stroke-width="2.6" stroke-linejoin="round"/>`;
+  const bw=Math.max(Math.min(cw*.7,16),2);
+  cs.forEach((c,i)=>{const col=c[3]>=c[0]?"#2EBD85":"#F0616D",yo=y(c[0]),yc=y(c[3]);
+    g+=`<line x1="${x(i)}" x2="${x(i)}" y1="${y(c[1])}" y2="${y(c[2])}" stroke="${col}" stroke-width="1.4"/><rect x="${x(i)-bw/2}" y="${Math.min(yo,yc)}" width="${bw}" height="${Math.max(Math.abs(yc-yo),1.5)}" fill="${col}"/>`});
+  const mk=S.signal.price,last=cs[n-1];let yf=y(mk),ys=y(S.spot);if(Math.abs(ys-yf)<24)ys=yf+(ys>=yf?24:-24);
+  const tag=(yy,v,bg,fg)=>`<rect x="${W-R+2}" y="${yy-11}" width="${R-4}" height="22" rx="4" fill="${bg}"/><text x="${W-R+8}" y="${yy+5}" font-size="14" font-weight="800" fill="${fg}">${f2(v)}</text>`;
+  g+=tag(ys,S.spot,"#E0B85A","#040A1C")+tag(yf,mk,last[3]>=last[0]?"#2EBD85":"#F0616D","#fff");
+  $("chart").setAttribute("viewBox",`0 0 ${W} ${H}`);$("chart").innerHTML=g;
+  const vb=$("volbox"),VW=vb.clientWidth,VH=vb.clientHeight,mx=Math.max(5,...cs.map(c=>c[4]));
+  let v=`<text x="${L+2}" y="17" font-size="13" fill="#8EA0C8">Volume (contracts)</text><text x="${VW-R+8}" y="17" font-size="13" fill="#8EA0C8">${mx}</text>`;
+  cs.forEach((c,i)=>{if(!c[4])return;const h=c[4]/mx*(VH-24);v+=`<rect x="${x(i)-bw/2}" y="${VH-3-h}" width="${bw}" height="${h}" fill="${c[3]>=c[0]?"#2EBD85":"#F0616D"}" opacity=".7"/>`});
+  $("volsvg").setAttribute("viewBox",`0 0 ${VW} ${VH}`);$("volsvg").innerHTML=v;
 }
+new ResizeObserver(()=>chart()).observe($("chartbox"));
+
+function hbars(items,W){const fs=18,lab=Math.round(W*.42),half=(W-lab-16)/2-60,mid=lab+16+60+half,rh=46,H=items.length*rh+4,mx=Math.max(1,...items.map(i=>Math.abs(i.v||0)));
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block">`+items.map((it,k)=>{const y=k*rh+4,w=it.v==null?0:Math.abs(it.v)/mx*half,neg=it.v<0;
+    return `<text x="${lab}" y="${y+rh/2+6}" font-size="${fs}" fill="#E6ECFA" text-anchor="end">${it.l}</text>
+      <rect x="${neg?mid-w:mid}" y="${y+8}" width="${Math.max(w,1)}" height="${rh-16}" rx="4" fill="${it.c||(it.v>=0?"#2EBD85":"#F0616D")}"/>
+      <text x="${neg?mid-w-8:mid+w+8}" y="${y+rh/2+6}" font-size="${fs}" font-weight="800" fill="#E6ECFA" text-anchor="${neg?"end":"start"}">${it.v==null?"–":it.f?it.f(it.v):usd(it.v)}</text>`}).join("")
+    +`<line x1="${mid}" x2="${mid}" y1="0" y2="${H}" stroke="#22386B"/></svg>`}
+
 function render(s){
-  const over=s.status==="settled",st={waiting:"Waiting To Start",open:"",paused:"Paused",settled:"Settled"}[s.status];
-  $("sub").textContent=s.status==="waiting"&&s.joinUrl?`Sign-up is open. Join at ${s.joinUrl}`
-    :over?`Game finished. Final settlement at ${f2(s.settle)} points.`
-    :`Day ${s.day} Of ${s.days}, ${s.session}${s.cashOpen?": Cash Market Open":": Cash Market Closed"}${st?" ("+st+")":""}`;
+  S=s;const over=s.status==="settled",sig=s.signal,P=s.params;
+  $("px").textContent=f2(over?s.settle:sig.price);$("pxsub").textContent=over?"Final settlement":"Futures price";
+  $("sess").innerHTML=over?`Game Over<span>${s.rounds} sessions played</span>`:`Day ${s.day} of ${s.days} · ${s.cashOpen?"☀ Cash":"☾ Overnight"}<span>Session ${s.round+1} of ${s.rounds}${s.status==="paused"?" · Paused":s.status==="waiting"?" · Not started":""}</span>`;
   $("clocklabel").textContent=over?"Game":s.newsOut?"Session Ends In":"News In";
-  $("clock").textContent=over?"Finished":Math.ceil(s.newsOut?s.secondsLeft:s.newsIn)+" s";
-  $("last").textContent=f2(s.last);
-  const prem=s.last==null?null:s.last-s.fair;
-  $("lastnote").textContent=prem==null?"No trades yet":`${sg(prem)} points against fair futures`;
-  $("spotlabel").textContent=`Spot Index, ${over?"Final":s.cashOpen?"Live":"Last Close"} (Pts)`;
-  $("spot").textContent=f2(s.spot);
-  $("spotnote").textContent=over?"Opening print after the last night":s.cashOpen?"Prints live in the cash session":"Frozen until the next open";
-  $("fair").textContent=f2(s.fair);
-  $("vol").textContent=s.volume.toLocaleString("en-US");
-  $("people").textContent=`${s.people} ${s.people===1?"member":"members"} trading`;
-  chart(s);
-  $("news").innerHTML=s.news.slice().reverse().slice(0,6).map((n,i)=>`<div class="item ${i===0?"new":""}">
-    <div class="when">Day ${n.day}, ${n.session}</div>
-    <div class="move ${n.shock>=0?"up":"dn"}">${sg(n.shock)} Points</div>
-    <div class="note">${n.spot==null?"Cash market closed: spot gaps at the open":"Spot moved to "+f2(n.spot)}</div></div>`).join("")
-    ||`<div class="item"><div class="note">No news yet. One shock goes public midway through every session.</div></div>`;
+  $("clock").textContent=over?"Over":mmss(s.newsOut?s.secondsLeft:s.newsIn);
+  $("progi").style.width=(over?100:Math.min(Math.max(1-s.secondsLeft/P.roundSeconds,0),1)*100)+"%";
+  $("spot").textContent=f2(s.spot);$("spotnote").textContent=over?"Final print":s.cashOpen?"☀ Live":"☾ Frozen overnight";
+  $("fair").textContent=f2(s.fair);$("fairnote").textContent=Math.abs(s.pending)>=.05?`Spot ${f1(s.pending)} overnight`:"= Spot";
+  const gap=over?0:sig.gap;$("gap").textContent=f1(gap);$("gap").className=cls(gap);
+  $("needle").style.left=(50+Math.max(-20,Math.min(20,gap))/20*48)+"%";
+  const tot=sig.buy+sig.sell;$("flowv").innerHTML=`<span class="up">${sig.buy}</span> / <span class="dn">${sig.sell}</span>`;
+  $("flowb").style.width=(tot?sig.buy/tot*100:0)+"%";$("flows").style.width=(tot?sig.sell/tot*100:0)+"%";
+  $("vol").textContent=s.volume.toLocaleString("en-US");$("people").textContent=`${s.people} players`;
+  $("cint").textContent=`${Math.round(s.candleSeconds)}s candles`;
+  chart();
+  $("news").innerHTML=s.news.slice().reverse().slice(0,7).map((n,i)=>{const said=Math.abs(n.lead)>=1,ok=(n.lead>0)===(n.shock>0);
+    return `<div class="item ${i===0?"new":""}"><div class="w">D${n.day} ${n.spot==null?"☾":"☀"}</div><div class="m ${cls(n.shock)}">${f1(n.shock)}</div>
+      <div class="h">Futures hinted<b class="${cls(n.lead)}">${f1(n.lead)} <span class="tag ${said?(ok?"ok":"no"):"q"}">${said?(ok?"✓":"✗"):"·"}</span></b></div></div>`}).join("")
+    ||`<div class="item"><div class="w"></div><div class="mut">News at halfway, every session</div><div></div></div>`;
+  $("top").innerHTML=s.top5.map((r,i)=>`<tr><td>${i+1}. ${esc(r.name)}</td><td class="${cls(r.pnl)}">${usd(r.pnl)}</td></tr>`).join("")||`<tr><td class="mut">No players yet</td><td></td></tr>`;
+  const cv=$("cover");
+  if(s.status==="waiting"){cv.classList.remove("hide");
+    cv.innerHTML=`<div><h2>Join on your phone or laptop</h2><div class="url">${esc((s.joinUrl||location.origin).replace(/^https?:\/\//,""))}</div>
+      <div class="nums"><div><b>${s.people}</b><span>Players In</span></div><div><b>${s.introDone} / ${s.people}</b><span>Finished Intro</span></div><div><b>${Math.round(s.rounds*P.roundSeconds/60)}</b><span>Minutes Of Trading</span></div><div><b>0</b><span>Fees</span></div></div></div>`}
+  else if(over&&s.lessons&&s.lessons.clueN){const L=s.lessons;cv.classList.remove("hide");
+    cv.innerHTML=`<div class="lessons"><h2>What Did We Learn?</h2><div class="mut" style="font-size:16px;margin-bottom:14px">Average profit per player per session (USD) · final settlement ${f2(s.settle)}</div>
+      ${hbars([{l:`With a clue (avg bet ${L.clueSize.toFixed(1)})`,v:L.cluePnl,c:"#E0B85A"},{l:`No clue (avg bet ${L.plainSize.toFixed(1)})`,v:L.plainPnl},
+        {l:`No clue, followed the futures (${L.followN})`,v:L.followN?L.followPnl:null},{l:`No clue, bet against them (${L.againstN})`,v:L.againstN?L.againstPnl:null},
+        {l:"Futures called the news first",v:L.hinted?L.hintedRight/L.hinted*100:null,c:"#3D8BFF",f:()=>`${L.hintedRight} / ${L.hinted}`}],940)}</div>`}
+  else cv.classList.add("hide");
 }
 const poll=()=>fetch("/api/overview").then(r=>r.json()).then(render).catch(()=>{});
 poll();setInterval(poll,1000);
