@@ -13,6 +13,8 @@ buying from it, it raises its prices, so informed trading shows up in the future
 reaches the spot index. Each session a few members, drawn at random, see that session's news early.
 All levels are GAME PARAMETERS, not market data.
 """
+import base64
+import hmac
 import json
 import math
 import os
@@ -23,6 +25,9 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.request
+import zlib
+from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
@@ -52,6 +57,7 @@ MAX_ORDER_QTY = 20
 PRICE_BAND = 0.10            # orders more than 10% from fair value are refused
 BOOK_LEVELS = 8              # price levels shown each side of the order book
 CANDLES_PER_SESSION = 12     # chart candles in one session: 10-second candles when a session is 2 minutes
+TAPE_KEEP = 200              # recent trades kept for the screens (counts and volume are kept separately)
 
 
 # ---------------- Game Setup (changed by the game master before a game starts) ----------------
@@ -143,6 +149,8 @@ class Book:
         self.avg = [0.0] * n                   # average entry price of the open position
         self.realised = [0.0] * n              # profit locked in by closing trades, index points
         self.seq = 0
+        self.trades = 0                        # fills so far
+        self.volume = 0                        # contracts traded so far
         self.last = None
         self.last_round = None
         self.tape = []
@@ -207,7 +215,11 @@ class Book:
             self.cash[seller] += fill * best[0]
             self.last = best[0]
             self.last_round = rnd
+            self.trades += 1
+            self.volume += fill
             self.tape.append({"p": best[0], "q": fill, "b": buyer, "s": seller, "r": rnd, "taker": t, "t": time.time()})
+            if len(self.tape) > TAPE_KEEP:
+                del self.tape[:len(self.tape) - TAPE_KEEP]
             qty -= fill
             filled += fill
             best[3] -= fill
@@ -227,6 +239,7 @@ class Game:
         self.names = {}                         # seat -> name (kept after a member leaves)
         self.intro = set()                      # seats that have finished the how-to-play introduction
         self.rng = random.Random()
+        self.t = time.time()                    # the game clock: moved forward by advance_to()
         self.reset()
 
     def reset(self):
@@ -251,7 +264,7 @@ class Game:
         self.checks = []                        # end-of-session proof that profits sum to zero
         self.pos_at_news = {}                   # session index -> every account's position when the news hit
         self.ends = []                          # every account's profit or loss at the end of each session
-        self.next_refresh = 0
+        self.next_refresh = math.inf            # next noise step; set when the game starts
         self.new_phase()
         self.house_quote()
         self.candles = []                       # [open, high, low, close, volume, taker-buy volume, spot, fair, session, slot]
@@ -283,7 +296,7 @@ class Game:
     def new_phase(self):
         """Start counting order flow afresh: at a new session and when the news goes public."""
         self.flow_base = self.book.pos[HOUSE]   # house position when this phase began
-        self.tape_mark = len(self.book.tape)    # trades before this point are older than the latest news
+        self.tape_mark = self.book.trades       # trades before this point are older than the latest news
         self.flow = {"buy": 0, "sell": 0}       # contracts members bought (took offers) or sold (hit bids)
 
     def lean(self):
@@ -310,7 +323,7 @@ class Game:
         b = self.book
         if b.bids and b.asks:
             return (max(o[0] for o in b.bids) + min(o[0] for o in b.asks)) / 2
-        if len(b.tape) > self.tape_mark:
+        if b.trades > self.tape_mark:
             return b.last
         return self.fair()
 
@@ -347,12 +360,13 @@ class Game:
     def start(self):
         if self.status in ("waiting", "paused"):
             self.status = "open"
-            self.deadline = time.time() + self.remaining
+            self.deadline = self.t + self.remaining
+            self.next_refresh = self.t + NOISE_STEP
             self.draw_clues()
 
     def pause(self):
         if self.status == "open":
-            self.remaining = max(self.deadline - time.time(), 0)
+            self.remaining = max(self.deadline - self.t, 0)
             self.status = "paused"
 
     def release_news(self):
@@ -412,7 +426,7 @@ class Game:
             self.zero_sum_check("Final Settlement")
         else:
             self.remaining = ROUND_SECONDS
-            self.deadline = time.time() + ROUND_SECONDS
+            self.deadline = self.t + ROUND_SECONDS
             self.new_phase()
             self.house_quote()
             self.candle_mark()
@@ -426,20 +440,30 @@ class Game:
         else:
             self.next_round()
 
-    def tick(self):
-        if self.status != "open":
-            return
-        now = time.time()
-        if now >= self.deadline:
-            self.next_round()
-            return
-        if not self.news_out and now >= self.deadline - ROUND_SECONDS / 2:
-            self.release_news()
-        if now >= self.next_refresh:
-            self.next_refresh = now + NOISE_STEP
-            self.drift(NOISE_STEP)
-            self.house_quote()
+    def advance_to(self, now):
+        """Run the game clock forward to `now`, one event at a time in time order: noise steps, the news at
+        halfway and session ends. Nothing here depends on when it is called, so the same stored game always
+        plays out the same way. That lets any server (or any Vercel request) catch the game up."""
+        while self.status == "open":
+            news_at = math.inf if self.news_out else self.deadline - ROUND_SECONDS / 2
+            nxt = min(self.deadline, news_at, self.next_refresh)
+            if nxt > now:
+                break
+            self.t = nxt
+            if nxt == self.deadline:
+                self.next_round()
+            elif nxt == news_at:
+                self.release_news()
+            else:
+                self.next_refresh = nxt + NOISE_STEP
+                self.drift(NOISE_STEP)
+                self.house_quote()
+                self.candle_mark()
+        self.t = max(self.t, now)
         self.candle_mark()
+
+    def tick(self):
+        self.advance_to(time.time())
 
     # ---------- chart candles ----------
     def slot(self):
@@ -449,15 +473,22 @@ class Game:
 
     def new_candle(self):
         p = self.fut_price()
-        self.candles.append([p, p, p, p, 0, 0, self.spot, self.fair(), self.round, self.slot()])
+        self.candles.append([p, p, p, p, 0, 0, self.spot, self.fair(), self.round, 0])
 
     def candle_mark(self, price=None, qty=0, buy=False):
-        """Move the current candle to the futures price now (or a trade price) and add any traded volume."""
+        """Move the current candle to the futures price now (or a trade price) and add any traded volume.
+        Every slot of the session gets a candle, even one with no events, so the chart never depends on
+        when someone happened to look."""
         if self.status == "settled":
             return
+        r, s = self.round, self.slot()
         c = self.candles[-1]
-        if (c[8], c[9]) != (self.round, self.slot()):
-            self.new_candle()
+        while (c[8], c[9]) != (r, s):
+            nxt = c[9] + 1 if c[8] == r else 0
+            if c[8] == r and nxt > s:
+                break                           # the clock never runs backwards, but stay safe
+            p = self.fut_price()
+            self.candles.append([p, p, p, p, 0, 0, self.spot, self.fair(), r, nxt])
             c = self.candles[-1]
         p = self.fut_price() if price is None else price
         c[1], c[2], c[3] = max(c[1], p), min(c[2], p), p
@@ -467,7 +498,7 @@ class Game:
 
     def secs(self):
         if self.status == "open":
-            return max(self.deadline - time.time(), 0)
+            return max(self.deadline - self.t, 0)
         return self.remaining if self.status in ("waiting", "paused") else 0
 
     # ---------- members ----------
@@ -534,9 +565,9 @@ class Game:
         if abs(price / self.fair() - 1) > PRICE_BAND:
             return {"ok": False, "msg": "Price Is More Than 10% From Fair Value."}
         self.book.limits[seat] = POS_LIMIT
-        n0 = len(self.book.tape)
+        n0 = self.book.trades
         r = self.book.submit(seat, side, price, qty, self.round + 1, now=now)
-        for x in self.book.tape[n0:]:           # remember which trades came before the news
+        for x in self.book.tape[len(self.book.tape) - (self.book.trades - n0):]:   # this order's fills
             x["pre"] = not self.news_out
             self.candle_mark(x["p"], x["q"], side == "B")
         self.flow["buy" if side == "B" else "sell"] += r["filled"]
@@ -605,7 +636,7 @@ class Game:
                 "pending": self.pending, "indicatedOpen": self.spot + self.pending, "last": self.book.last,
                 "settle": self.settle, "candles": self.candles, "candlesPerSession": CANDLES_PER_SESSION,
                 "candleSeconds": ROUND_SECONDS / CANDLES_PER_SESSION, "news": self.news, "signal": self.signal(),
-                "volume": sum(x["q"] for x in self.book.tape), "people": len(self.humans), "seats": SEATS,
+                "volume": self.book.volume, "people": len(self.humans), "seats": SEATS,
                 "joinUrl": JOIN_URL, "params": params()}
 
     def overview(self):
@@ -715,7 +746,7 @@ LOCK = threading.RLock()
 ADMIN_KEY = os.environ.get("GAME_ADMIN_KEY", "")   # optional key for a game master on another computer
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATE_FILE = os.path.join(HERE, "game_state.pkl")
-STATE_VERSION = 10           # raise when the shape of Game changes, so an old save is ignored
+STATE_VERSION = 11           # raise when the shape of Game changes, so an old save is ignored
 
 
 def save():
@@ -739,6 +770,7 @@ def load():
     if game.status == "open":
         game.remaining = max(game.deadline - saved_at, 0)
         game.status = "paused"
+    game.t = time.time()
     GAME = game
     return True
 
@@ -757,29 +789,187 @@ def loop():
         time.sleep(0.25)
 
 
-def admin_action(d):
+# ---------------- Where the game lives ----------------
+# On one computer the game sits in memory and the loop above moves its clock. On Vercel every request can land on
+# a different short-lived server, so the game is kept in Redis instead: a request loads it, runs its clock forward
+# to now with advance_to() (the same stored game always plays out the same way), and a request that changes the
+# game saves it back while holding a lock, so two changes can never overwrite each other.
+class StoreError(Exception):
+    """Redis could not be reached, or the game was too busy to change in time."""
+
+
+class RestRedis:
+    """Redis over HTTPS, the way Vercel's Upstash Redis integration offers it. Needs no extra packages."""
+
+    def __init__(self, url, token):
+        self.url, self.token = url.rstrip("/"), token
+
+    def cmd(self, *args):
+        req = urllib.request.Request(self.url, data=json.dumps([str(a) for a in args]).encode(), method="POST",
+                                     headers={"Authorization": f"Bearer {self.token}",
+                                              "Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=8) as r:
+                out = json.loads(r.read())
+        except Exception as e:
+            raise StoreError(f"Redis request failed: {e!r}") from None
+        if isinstance(out, dict) and out.get("error"):
+            raise StoreError(f"Redis error: {out['error']}")
+        return out.get("result") if isinstance(out, dict) else out
+
+
+class TcpRedis:
+    """Redis over its own protocol (a redis:// or rediss:// address). Uses the 'redis' package."""
+
+    def __init__(self, url):
+        import redis                            # only needed on a host that gives a redis:// address
+        self.r = redis.Redis.from_url(url, decode_responses=True, socket_timeout=8)
+
+    def cmd(self, *args):
+        try:
+            return self.r.execute_command(*args)
+        except Exception as e:
+            raise StoreError(f"Redis request failed: {e!r}") from None
+
+
+def find_redis(env):
+    """The Redis connection Vercel gave this project, whatever prefix its variables were given."""
+    for k, url in sorted(env.items()):
+        if k.endswith("REST_API_URL") and url.startswith("http"):
+            token = env.get(k[:-len("URL")] + "TOKEN")
+            if token:
+                return RestRedis(url, token)
+    for k in ("UPSTASH_REDIS_REST_URL",):
+        if env.get(k) and env.get("UPSTASH_REDIS_REST_TOKEN"):
+            return RestRedis(env[k], env["UPSTASH_REDIS_REST_TOKEN"])
+    for k, url in sorted(env.items()):
+        if (k.endswith("REDIS_URL") or k.endswith("KV_URL")) and url.startswith(("redis://", "rediss://")):
+            return TcpRedis(url)
+    return None
+
+
+# Redis is used on Vercel (it sets VERCEL=1) or when GAME_STORE=redis; anywhere else the game stays in memory.
+USE_REDIS = bool(os.environ.get("VERCEL")) or os.environ.get("GAME_STORE") == "redis"
+REDIS = find_redis(os.environ) if USE_REDIS else None
+PREFIX = os.environ.get("GAME_REDIS_PREFIX", "futures-game")
+K_STATE, K_VER, K_LOCK, K_KEY = (f"{PREFIX}:{n}" for n in ("state", "version", "lock", "adminkey"))
+SAVE_EVERY = 6.0             # a read saves the caught-up clock when the stored one is this many seconds old
+UNLOCK = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end"
+CACHE = {"ver": None, "text": None}          # the last game text this server instance read, and its version
+wall_clock = time.time       # the time requests run the game to (tests replace it to fast-forward a game)
+
+
+def pack(game):
+    return base64.b64encode(zlib.compress(pickle.dumps((STATE_VERSION, settings(), game)), 6)).decode()
+
+
+def unpack(text):
+    try:
+        version, setup, game = pickle.loads(zlib.decompress(base64.b64decode(text)))
+    except Exception:
+        return None
+    if version != STATE_VERSION or len(game.book.pos) != SEATS + 1 or apply_settings(setup):
+        return None
+    return game
+
+
+def redis_read():
+    """The stored game text. A tiny version number is checked first, so a busy server skips the big download."""
+    ver = REDIS.cmd("GET", K_VER)
+    if ver is not None and ver == CACHE["ver"]:
+        return CACHE["text"]
+    ver, text = REDIS.cmd("MGET", K_VER, K_STATE)
+    CACHE["ver"], CACHE["text"] = ver, text
+    return text
+
+
+def redis_write(game):
+    text = pack(game)
+    REDIS.cmd("SET", K_STATE, text)
+    ver = REDIS.cmd("INCR", K_VER)
+    CACHE["ver"], CACHE["text"] = str(ver), text
+
+
+@contextmanager
+def redis_lock(wait):
+    """Only one request changes the game at a time. Yields False when wait is off and someone else holds it."""
+    token = base64.b16encode(os.urandom(8)).decode()
+    give_up = time.time() + (6.0 if wait else 0.0)
+    while REDIS.cmd("SET", K_LOCK, token, "NX", "PX", "8000") not in (True, "OK"):
+        if time.time() >= give_up:
+            if wait:
+                raise StoreError("The game is busy. Try again.")
+            yield False
+            return
+        time.sleep(0.04)
+    try:
+        yield True
+    finally:
+        try:
+            REDIS.cmd("EVAL", UNLOCK, 1, K_LOCK, token)
+        except StoreError:
+            pass                                # the lock expires by itself after a few seconds
+
+
+@contextmanager
+def game_session(change):
+    """The game for one request, with its clock run forward to now. Changes are kept when the request ends."""
+    if not USE_REDIS:
+        with LOCK:
+            GAME.advance_to(time.time())
+            yield GAME
+        return
+    if REDIS is None:
+        raise StoreError("No Redis database is connected to this Vercel project.")
+    if not change:
+        text = redis_read()
+        game = unpack(text) if text else None
+        if game is not None:
+            stored_t = game.t
+            game.advance_to(wall_clock())
+            yield game
+            if game.status == "open" and game.t - stored_t > SAVE_EVERY:   # keep the stored clock fresh
+                with redis_lock(wait=False) as got:
+                    if got and REDIS.cmd("GET", K_STATE) == text:
+                        redis_write(game)
+            return
+    with redis_lock(wait=True):                 # a change, or the very first game
+        CACHE["ver"] = None
+        text = redis_read()
+        game = (unpack(text) if text else None) or Game()
+        game.advance_to(wall_clock())
+        yield game
+        redis_write(game)
+
+
+def claimed_key():
+    return REDIS.cmd("GET", K_KEY) if REDIS is not None else None
+
+
+def admin_action(d, game=None):
+    game = game or GAME
     a = d.get("action")
     if a in ("start", "pause", "reset"):
-        getattr(GAME, a)()
+        getattr(game, a)()
     elif a == "next":
-        GAME.advance()
+        game.advance()
     elif a == "free":
-        for seat in list(GAME.humans):
-            GAME.leave(seat)
+        for seat in list(game.humans):
+            game.leave(seat)
     elif a == "kick":
-        GAME.leave(int(d.get("seat", -1)))
+        game.leave(int(d.get("seat", -1)))
     elif a == "holders":                        # can change during a game; applies from the next session
         err = apply_settings({"holders": d.get("value")})
         if err:
             return {"ok": False, "msg": err}
     elif a == "setup":                          # everything else only between games
-        if GAME.status != "waiting":
+        if game.status != "waiting":
             return {"ok": False, "msg": "Setup Can Only Change Before A Game Starts. Press New Game First."}
         values = d.get("values")
         err = apply_settings(values) if isinstance(values, dict) else "Bad Request."
         if err:
             return {"ok": False, "msg": err}
-        GAME.reset()                            # members keep their seats
+        game.reset()                            # members keep their seats
     else:
         return {"ok": False, "msg": "Unknown Action."}
     return {"ok": True, "msg": ""}
@@ -793,11 +983,24 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def is_admin(self):
-        # A tunnel or proxy makes every visitor look local, so a forwarded request is never the game master.
+        """The computer running the game is the game master. Anyone else needs the key: GAME_ADMIN_KEY if it is
+        set, otherwise (on Vercel) the first key typed on the monitor page becomes the key."""
         forwarded = any(h in self.headers for h in ("X-Forwarded-For", "X-Forwarded-Host", "Forwarded",
                                                     "X-Real-Ip", "Cf-Connecting-Ip"))
-        local = self.client_address[0] in ("127.0.0.1", "::1") and not forwarded
-        return local or (ADMIN_KEY != "" and self.headers.get("X-Admin-Key") == ADMIN_KEY)
+        if self.client_address[0] in ("127.0.0.1", "::1") and not forwarded and not USE_REDIS:
+            return True
+        key = self.headers.get("X-Admin-Key") or ""
+        if not key:
+            return False
+        if ADMIN_KEY:
+            return hmac.compare_digest(key, ADMIN_KEY)
+        if REDIS is None:
+            return False
+        saved = claimed_key()
+        if saved is None and len(key) >= 4:
+            REDIS.cmd("SET", K_KEY, key, "NX")
+            saved = claimed_key()
+        return saved is not None and hmac.compare_digest(key, saved)
 
     def send(self, body, ctype="application/json", code=200):
         data = body if isinstance(body, bytes) else json.dumps(body).encode()
@@ -808,28 +1011,46 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
-    def do_GET(self):
+    def route(self):
+        """The endpoint asked for. On Vercel every endpoint is sent to one function, which may see either the
+        original address or /api/index?route=<name>."""
         u = urlparse(self.path)
         q = parse_qs(u.query)
-        if u.path in PAGES:
-            with open(os.path.join(HERE, PAGES[u.path]), "rb") as f:
+        if u.path.rstrip("/") in ("/api/index", "/api") and q.get("route"):
+            return "/api/" + q["route"][0], q
+        return u.path, q
+
+    def do_GET(self):
+        path, q = self.route()
+        if path in PAGES:
+            with open(os.path.join(HERE, PAGES[path]), "rb") as f:
                 return self.send(f.read(), "text/html; charset=utf-8")
-        with LOCK:
-            if u.path == "/api/state":
-                seat = GAME.seat_of(q.get("token", [None])[0])
-                if seat is None:
-                    out = {"joined": False, "people": len(GAME.humans), "seats": SEATS, "status": GAME.status,
-                           "params": params()}
-                else:
-                    out = GAME.state(seat)
-                out["isAdmin"] = self.is_admin()
+        try:
+            if path == "/api/state":
+                admin = self.is_admin()
+                with game_session(change=False) as game:
+                    seat = game.seat_of(q.get("token", [None])[0])
+                    if seat is None:
+                        out = {"joined": False, "people": len(game.humans), "seats": SEATS, "status": game.status,
+                               "params": params()}
+                    else:
+                        out = game.state(seat)
+                out["isAdmin"] = admin
                 return self.send(out)
-            if u.path == "/api/overview":
-                return self.send(GAME.overview())
-            if u.path == "/api/monitor":
+            if path == "/api/overview":
+                with game_session(change=False) as game:
+                    out = game.overview()
+                return self.send(out)
+            if path == "/api/monitor":
                 if not self.is_admin():
-                    return self.send({"ok": False, "msg": "Game Master Only."}, code=403)
-                return self.send(GAME.monitor())
+                    claimable = USE_REDIS and not ADMIN_KEY and REDIS is not None and claimed_key() is None
+                    return self.send({"ok": False, "msg": "Game Master Only.", "claimable": claimable}, code=403)
+                with game_session(change=False) as game:
+                    out = game.monitor()
+                return self.send(out)
+        except StoreError as e:
+            print("store error:", self.path, e, file=sys.stderr)
+            return self.send({"ok": False, "msg": str(e)}, code=503)
         self.send({"error": "Not Found"}, code=404)
 
     def do_POST(self):
@@ -840,40 +1061,45 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             return self.send({"ok": False, "msg": "Bad Request."}, code=400)
         try:
-            with LOCK:
-                res = self.handle_post(d)
+            res = self.handle_post(d)
+        except StoreError as e:
+            print("store error:", self.path, e, file=sys.stderr)
+            return self.send({"ok": False, "msg": str(e)}, code=503)
         except Exception as e:                  # a bad request must never take the server down
             print("request error:", self.path, repr(e), file=sys.stderr)
             return self.send({"ok": False, "msg": "That Request Could Not Be Read."}, code=400)
         self.send(res, code=res.pop("code", 200))
 
     def handle_post(self, d):
+        path = self.route()[0]
         token = d.get("token")
-        if self.path == "/api/admin":
+        if path == "/api/admin":
             if not self.is_admin():
                 return {"ok": False, "msg": "Game Master Only.", "code": 403}
-            return admin_action(d)
-        if self.path == "/api/join":
-            return GAME.join(token, d.get("name"))
-        seat = GAME.seat_of(token)
-        if seat is None:
-            return {"ok": False, "msg": "Sign Up First."}
-        if self.path == "/api/intro":           # the member finished (or skipped) the how-to-play introduction
-            GAME.intro.add(seat)
-            return {"ok": True, "msg": ""}
-        if self.path == "/api/leave":
-            GAME.leave(seat)
-            return {"ok": True, "msg": ""}
-        if self.path == "/api/order":
-            price, qty = d.get("price"), d.get("qty")
-            if isinstance(price, bool) or isinstance(qty, bool) or not isinstance(price, (int, float)) \
-                    or not isinstance(qty, int):
-                return {"ok": False, "msg": "Enter A Price And A Quantity."}
-            return GAME.order(seat, d.get("side"), float(price), qty, now=d.get("now") is True)
-        if self.path == "/api/cancel":
-            ok = GAME.book.cancel(seat, int(d.get("id", -1)))
+            with game_session(change=True) as game:
+                return admin_action(d, game)
+        if path not in ("/api/join", "/api/intro", "/api/leave", "/api/order", "/api/cancel"):
+            return {"ok": False, "msg": "Not Found.", "code": 404}
+        with game_session(change=True) as game:
+            if path == "/api/join":
+                return game.join(token, d.get("name"))
+            seat = game.seat_of(token)
+            if seat is None:
+                return {"ok": False, "msg": "Sign Up First."}
+            if path == "/api/intro":            # the member finished (or skipped) the how-to-play introduction
+                game.intro.add(seat)
+                return {"ok": True, "msg": ""}
+            if path == "/api/leave":
+                game.leave(seat)
+                return {"ok": True, "msg": ""}
+            if path == "/api/order":
+                price, qty = d.get("price"), d.get("qty")
+                if isinstance(price, bool) or isinstance(qty, bool) or not isinstance(price, (int, float)) \
+                        or not isinstance(qty, int):
+                    return {"ok": False, "msg": "Enter A Price And A Quantity."}
+                return game.order(seat, d.get("side"), float(price), qty, now=d.get("now") is True)
+            ok = game.book.cancel(seat, int(d.get("id", -1)))
             return {"ok": ok, "msg": "Order Cancelled." if ok else "Order Not Found."}
-        return {"ok": False, "msg": "Not Found.", "code": 404}
 
 
 if __name__ == "__main__":
@@ -883,9 +1109,12 @@ if __name__ == "__main__":
     nums = [a for a in sys.argv[1:] if a.isdigit()]
     port = int(nums[0]) if nums else int(os.environ.get("PORT", 7848))
     host = "0.0.0.0" if "--lan" in sys.argv or HOSTED else "127.0.0.1"   # --lan lets others on the same network join
-    if "--fresh" not in sys.argv and load():
-        print("Restored the last saved game (a running game comes back paused). Use --fresh to ignore it.")
-    threading.Thread(target=loop, daemon=True).start()
+    if USE_REDIS:                               # the game lives in Redis: no local save file, no local clock loop
+        print("Game state is kept in Redis." if REDIS else "Warning: no Redis connection found.")
+    else:
+        if "--fresh" not in sys.argv and load():
+            print("Restored the last saved game (a running game comes back paused). Use --fresh to ignore it.")
+        threading.Thread(target=loop, daemon=True).start()
     if HOSTED:
         JOIN_URL = HOSTED
         print(f"Hosted online. Players join:        {JOIN_URL}")

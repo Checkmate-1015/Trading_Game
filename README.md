@@ -49,6 +49,14 @@ Other options:
 - `python3 game_server.py 8000` uses another port.
 - `python3 game_server.py --fresh` ignores the last saved game.
 
+## Play Online On Vercel
+
+The repo deploys to Vercel as is: the pages are served as static files and `api/index.py` runs the game. Because Vercel does not keep a server running, the game is stored in the project's **Redis** database (connect one under Storage; Upstash Redis works), and every request runs the game clock forward to now.
+
+- Players open the project link. The projector is `/overview`; the game master console is `/monitor`.
+- The first time you open `/monitor`, type a key of your choice (4+ characters). It becomes the game master key. To set it yourself instead, add a `GAME_ADMIN_KEY` environment variable in Vercel.
+- Opening the files straight from GitHub does not work: GitHub only stores the code.
+
 ## How A Game Works
 
 Built for players aged about 14 to 16. The whole lesson takes 30 to 35 minutes: about 4 minutes of intro, 20 minutes of trading and a short debrief.

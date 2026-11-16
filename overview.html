@@ -175,7 +175,10 @@ function render(s){
         {l:"Futures called the news first",v:L.hinted?L.hintedRight/L.hinted*100:null,c:"#3D8BFF",f:()=>`${L.hintedRight} / ${L.hinted}`}],940)}</div>`}
   else cv.classList.add("hide");
 }
-const poll=()=>fetch("/api/overview").then(r=>r.json()).then(render).catch(()=>{});
+let fails=0;
+const poll=()=>fetch("/api/overview").then(async r=>{const j=await r.json().catch(()=>null);if(!r.ok||!j)throw new Error(j&&j.msg||`The server answered ${r.status}.`);return j})
+  .then(s=>{fails=0;render(s)}).catch(e=>{if(++fails>=3||!S){const cv=$("cover");cv.classList.remove("hide");
+    cv.innerHTML=`<div><h2>Can't Reach The Game Server</h2><div class="mut" style="font-size:18px;margin-top:10px">${esc(e.message)}</div></div>`}});
 poll();setInterval(poll,1000);
 </script>
 </body>

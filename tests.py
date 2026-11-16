@@ -7,6 +7,7 @@ import os
 import random
 import sys
 import tempfile
+import time
 
 import game_server as G
 
@@ -315,6 +316,135 @@ check("Every Session Is On The Report Card", len(g.report(h[0])) == G.ROUNDS
       and abs(sum(r["pnl"] for r in g.report(h[0])) - g.pnl(h[0])) < 1e-6)
 check("The Projector Gets Class Lessons Only After The Game", g.overview()["lessons"] is not None
       and new_game(33, 2).overview()["lessons"] is None)
+
+# 9b. The clock: a stored game always plays out the same way, however often it is caught up.
+import copy
+import pickle
+g = new_game(61, 6)
+g.deadline = g.t + G.ROUND_SECONDS                # a real clock this time
+g.next_refresh = g.t + G.NOISE_STEP
+t0 = g.t
+a, b = pickle.loads(pickle.dumps(g)), pickle.loads(pickle.dumps(g))
+a.advance_to(t0 + 400)                          # one big jump
+step = random.Random(7)
+now = t0
+while now < t0 + 400:                           # many small, uneven steps
+    now = min(now + step.uniform(0.05, 9), t0 + 400)
+    b.advance_to(now)
+same = lambda x, y: (x.round, x.status, x.spot, x.pending, x.news, x.holders, x.ends, x.candles, x.book.bids, x.book.asks) \
+    == (y.round, y.status, y.spot, y.pending, y.news, y.holders, y.ends, y.candles, y.book.bids, y.book.asks)
+check("Catching Up In One Jump Or Many Steps Gives The Same Game", same(a, b) and a.round == 3)
+a.advance_to(t0 + 10 * G.ROUND_SECONDS + 5)
+check("A Game Left Alone Plays Out To The End", a.status == "settled" and len(a.ends) == G.ROUNDS
+      and len(a.candles) == G.ROUNDS * G.CANDLES_PER_SESSION and a.checks[-1]["ok"])
+g = new_game(62, 2)
+g.book.cancel_all(G.HOUSE)
+for k in range(150):                             # 150 one-contract trades between two members
+    g.order(0, "S", g.fair() + 1, 1)
+    g.order(1, "B", g.fair() + 1, 1)
+    g.order(1, "S", g.fair() + 1, 1)
+    g.order(0, "B", g.fair() + 1, 1)
+check("Only Recent Trades Are Kept, But Volume Counts Them All", len(g.book.tape) == G.TAPE_KEEP
+      and g.book.volume == g.book.trades == 300)
+
+# 9c. Vercel mode: the game lives in Redis, and any short-lived server can answer any request.
+import json as _json
+import threading
+import urllib.error
+import urllib.request
+from http.server import ThreadingHTTPServer
+
+
+class FakeRedis:
+    """Just enough of Redis for the game: GET, MGET, SET (NX, PX), INCR and the unlock script."""
+
+    def __init__(self):
+        self.d = {}
+        self.calls = 0
+
+    def cmd(self, *a):
+        self.calls += 1
+        c, a = a[0].upper(), [str(x) for x in a[1:]]
+        if c == "GET":
+            return self.d.get(a[0])
+        if c == "MGET":
+            return [self.d.get(k) for k in a]
+        if c == "SET":
+            if "NX" in [x.upper() for x in a[2:]] and a[0] in self.d:
+                return None
+            self.d[a[0]] = a[1]
+            return "OK"
+        if c == "INCR":
+            self.d[a[0]] = str(int(self.d.get(a[0], "0")) + 1)
+            return int(self.d[a[0]])
+        if c == "EVAL":
+            key, tok = a[2], a[3]
+            if self.d.get(key) == tok:
+                del self.d[key]
+                return 1
+            return 0
+        raise ValueError(c)
+
+
+G.apply_settings(default)
+fake = FakeRedis()
+G.USE_REDIS, G.REDIS, G.ADMIN_KEY = True, fake, ""
+G.CACHE.update(ver=None, text=None)
+T = [1_800_000_000.0]
+G.wall_clock = lambda: T[0]
+srv = ThreadingHTTPServer(("127.0.0.1", 0), G.Handler)
+threading.Thread(target=srv.serve_forever, daemon=True).start()
+URL = f"http://127.0.0.1:{srv.server_address[1]}"
+
+
+def call(path, body=None, key=None, fresh=True):
+    if fresh:                                   # a different Vercel instance: nothing remembered
+        G.CACHE.update(ver=None, text=None)
+    req = urllib.request.Request(URL + path, data=None if body is None else _json.dumps(body).encode(),
+                                 headers={"Content-Type": "application/json", "X-Forwarded-For": "1.2.3.4",
+                                          **({"X-Admin-Key": key} if key else {})})
+    try:
+        with urllib.request.urlopen(req) as r:
+            return r.status, _json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        return e.code, _json.loads(e.read())
+
+
+code, body = call("/api/monitor")
+check("Online, The Monitor Is Locked And Offers To Set A Key", code == 403 and body["claimable"])
+check("The First Key Typed Becomes The Game Master Key", call("/api/monitor", key="teach42")[0] == 200
+      and call("/api/monitor", key="guess")[0] == 403 and call("/api/monitor")[1]["claimable"] is False)
+check("A Player Cannot Start The Game", call("/api/admin", {"action": "start"})[0] == 403)
+for i, n in enumerate(["Ava", "Ben", "Cy", "Di"]):
+    call("/api/join", {"token": f"p{i}", "name": n})
+call("/api/intro", {"token": "p0"})
+st = call("/api/state?token=p0")[1]
+check("Players Join And Are Remembered Between Servers", st["joined"] and st["people"] == 4 and st["me"]["introDone"])
+check("The Game Master Starts The Game", call("/api/admin", {"action": "start"}, key="teach42")[1]["ok"])
+T[0] += 20
+holder = next(f"p{i}" for i in range(4) if call(f"/api/state?token=p{i}")[1]["me"]["clue"])
+clue = call(f"/api/state?token={holder}")[1]["me"]["clue"]["value"]
+side = "B" if clue > 0 else "S"
+r = call("/api/order", {"token": holder, "side": side, "price": 5000 + (60 if side == "B" else -60), "qty": 6, "now": True})[1]
+T[0] += 15
+s1 = call(f"/api/state?token={holder}")[1]
+s2 = call(f"/api/state?token={holder}", fresh=False)[1]
+check("A Trade Is Saved And Every Server Sees It", r["ok"] and s1["me"]["pos"] == (6 if side == "B" else -6)
+      and s1["signal"]["gap"] * clue > 0 and s1["candles"] == s2["candles"] and s1["spot"] == s2["spot"])
+T[0] += 40                                       # past the news, which nobody requested at the moment it happened
+s3 = call("/api/overview")[1]
+check("News Comes Out On Time Even When Nobody Is Looking", len(s3["news"]) == 1 and abs(s3["news"][0]["shock"] - clue) < 1e-9)
+T[0] += 9 * G.ROUND_SECONDS + 60                  # the rest of the game (75 s were used), with no requests
+fin = call("/api/state?token=p0")[1]
+mon = call("/api/monitor", key="teach42")[1]
+check("A Whole Game Finishes In Redis, Zero-Sum, With Report Cards", fin["status"] == "settled"
+      and len(fin["me"]["report"]) == G.ROUNDS and all(c["ok"] for c in mon["checks"]) and abs(mon["sumPnl"]) < 0.01)
+before = fake.calls
+for _ in range(5):
+    call("/api/state?token=p1", fresh=False)
+check("A Busy Server Reads Only A Tiny Version Number When Nothing Changed", fake.calls - before <= 6)
+srv.shutdown()
+G.USE_REDIS, G.REDIS, G.ADMIN_KEY, G.wall_clock = False, None, "", time.time
 
 # 10. Crash recovery.
 G.GAME = new_game(21, 4)

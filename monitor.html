@@ -67,9 +67,10 @@ tr.now td{background:rgba(224,184,90,.1)}
 </div>
 <main>
 <div id="locked" class="card hide" style="max-width:520px;margin:40px auto">
-  <div class="sec" style="margin-top:0">Game Master Only</div>
-  <p class="mut">The computer running the server is always the game master. Another computer needs the key set on the server.</p>
-  <div class="btns"><input id="key" type="password" autocomplete="off" placeholder="Game master key"><button id="unlock">Unlock</button></div>
+  <div class="sec" style="margin-top:0" id="locktitle">Game Master Only</div>
+  <p class="mut" id="locktext">Enter the game master key.</p>
+  <div class="btns" id="lockform"><input id="key" type="password" autocomplete="off" placeholder="Game master key"><button id="unlock" class="go">Unlock</button></div>
+  <p class="mut" id="lockmsg2" style="margin-bottom:0"></p>
 </div>
 
 <div id="desk" class="hide">
@@ -137,7 +138,9 @@ const usdp=n=>Math.round(n).toLocaleString("en-US");
 const sg=n=>(n>0?"+":n<0?"−":"")+Math.abs(n);
 const cls=n=>Math.round(n*100)>0?"up":Math.round(n*100)<0?"dn":"";
 const mmss=s=>{s=Math.max(Math.ceil(s),0);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
-const hdr=()=>({"Content-Type":"application/json","X-Admin-Key":sessionStorage.getItem("key")||""});
+const getKey=()=>{try{return localStorage.getItem("gmkey")||""}catch(e){return ""}};
+const setKey=k=>{try{localStorage.setItem("gmkey",k)}catch(e){}};
+const hdr=()=>({"Content-Type":"application/json","X-Admin-Key":getKey()});
 const post=body=>fetch("/api/admin",{method:"POST",headers:hdr(),body:JSON.stringify(body)}).then(r=>r.json());
 let M=null,dirty=false,lastSetup="";
 const KEYS=["days","seconds","capital","contractValue","limit"];
@@ -160,7 +163,8 @@ document.querySelectorAll("[data-act]").forEach(b=>b.onclick=()=>{
   post({action:a}).then(r=>{$("amsg").textContent=r.ok?`Done: ${b.textContent}.`:r.msg;poll()})});
 $("hold").onchange=()=>post({action:"holders",value:+$("hold").value}).then(()=>{$("amsg").textContent=`Done: ${$("hold").value} clue holders from the next session.`;poll()});
 $("acc").onclick=e=>{const s=e.target.dataset.kick;if(s!=null&&confirm(`Remove ${e.target.dataset.name}? Their orders are cancelled.`))post({action:"kick",seat:+s}).then(poll)};
-$("unlock").onclick=()=>{sessionStorage.setItem("key",$("key").value);$("key").value="";poll()};
+$("unlock").onclick=()=>{const k=$("key").value.trim();if(k.length<4){$("lockmsg2").textContent="Use at least 4 characters.";return}setKey(k);$("key").value="";poll()};
+$("key").onkeydown=e=>{if(e.key==="Enter")$("unlock").click()};
 
 function render(m){
   M=m;const over=m.status==="settled",sig=m.signal;
@@ -213,9 +217,17 @@ function render(m){
     ||`<tr><td colspan="5" class="l mut">No trades yet</td></tr>`;
 }
 async function poll(){
-  try{const r=await fetch("/api/monitor",{headers:hdr()});
-    $("locked").classList.toggle("hide",r.ok);$("desk").classList.toggle("hide",!r.ok);
-    if(r.ok)render(await r.json());}catch(e){}
+  let r=null,j=null;
+  try{r=await fetch("/api/monitor",{headers:hdr()});j=await r.json().catch(()=>null)}catch(e){}
+  const ok=r&&r.ok&&j;$("locked").classList.toggle("hide",!!ok);$("desk").classList.toggle("hide",!ok);
+  if(ok)return render(j);
+  const denied=r&&r.status===403&&j;$("lockform").classList.toggle("hide",!denied);
+  if(denied&&j.claimable){$("locktitle").textContent="Set Your Game Master Key";
+    $("locktext").textContent="No key is set yet. Type one (4+ characters). It becomes the key for this game, so remember it.";}
+  else if(denied){$("locktitle").textContent="Game Master Only";
+    $("locktext").textContent=getKey()?"That key is not right. Enter the game master key.":"Enter the game master key.";}
+  else{$("locktitle").textContent="Can't Reach The Game Server";
+    $("locktext").textContent=(j&&j.msg)||"This page needs the game server. Opened from GitHub it can't work.";}
 }
 poll();setInterval(poll,1000);
 </script>
