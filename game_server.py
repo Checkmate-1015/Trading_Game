@@ -7,8 +7,10 @@ Run:  python3 game_server.py [port] [--lan] [--fresh]
       Game master   http://localhost:7848/monitor         (everything; this computer only)
 
 One market. Members trade one index future with each other through a limit order book.
-There are no bots. A house market maker always quotes fair value less and plus 0.25%.
-Each session a few members, drawn at random, see that session's news early.
+There are no bots and no trading fees. A house market maker quotes around fair value, about
+2.5 points either side, and leans its prices with the order flow it absorbs: when members keep
+buying from it, it raises its prices, so informed trading shows up in the futures before the news
+reaches the spot index. Each session a few members, drawn at random, see that session's news early.
 All levels are GAME PARAMETERS, not market data.
 """
 import json
@@ -27,28 +29,29 @@ from urllib.parse import parse_qs, urlparse
 # ---------------- Game Parameters ----------------
 SEATS = 60                   # most members who can sign up
 ROUNDS = 10                  # sessions: five trading days, each a cash session then an overnight session
-ROUND_SECONDS = 45           # length of one session
+ROUND_SECONDS = 120          # length of one session: 10 sessions of 2 minutes is 20 minutes of trading
 S0 = 5000.0                  # starting spot index (fictional)
-SHOCK_SD = 25.0              # index points per news shock
-RATE, DIV_YIELD, GAME_YEARS = 0.045, 0.013, 0.25
-TOTAL_CARRY = S0 * (RATE - DIV_YIELD) * GAME_YEARS                # 40 points over the whole game
-CARRY_PER_ROUND = TOTAL_CARRY / ROUNDS                            # 4.0 points a session
+SHOCK_MIN, SHOCK_MAX = 12.0, 40.0   # news moves the index 12 to 40 points, up or down at random
+NOISE_SD = 4.0               # random noise (Brownian motion): about 4 points a session, far smaller than any news
+NOISE_STEP = 2.0             # seconds between noise steps
 CONTRACT_VALUE = 5_000       # USD value of one contract at the starting index, so USD 1 a point
 MULTIPLIER = CONTRACT_VALUE / S0
 POS_LIMIT = 10               # contracts, long or short, per member
-START_CAPITAL = 100_000      # USD each member starts with
-MARGIN_PER_CONTRACT = 1_000  # USD of capital tied up per contract held
+START_CAPITAL = 100_000      # USD each member starts with: the base of the scoreboard (there is no margin)
 CLUE_HOLDERS = 3             # members who see each session's news early (game master can change it)
 TICK = 0.25
 HOUSE = SEATS                # the house account sits after the last member seat
-HOUSE_FEE = 0.0025           # house bid = fair x (1 - 0.25%), offer = fair x (1 + 0.25%)
-HOUSE_SIZE = 10
+HOUSE_SPREAD = 0.0005        # house bid = centre x (1 - 0.05%), offer = centre x (1 + 0.05%): about 2.5 points
+HOUSE_SIZE = 5               # contracts the house shows at each of its price levels
+HOUSE_LEVELS = 4             # price levels the house shows on each side
+HOUSE_LEAN = 0.5             # points the house moves its prices per contract of net buying (or selling) it absorbs
+LEAN_CAP = 75.0              # the most the house leans away from fair value, in points
 HOUSE_LIMIT = 250
-FUT_FEE_PTS = 0.05           # exchange fee per contract per side, in index points
 REFRESH_SECONDS = 2.0        # how often the house re-quotes and the chart takes a point
 MAX_ORDER_QTY = 20
 PRICE_BAND = 0.10            # orders more than 10% from fair value are refused
-BOOK_LEVELS = 5              # price levels shown each side of the order book
+BOOK_LEVELS = 8              # price levels shown each side of the order book
+CANDLES_PER_SESSION = 12     # chart candles in one session: 10-second candles when a session is 2 minutes
 
 
 # ---------------- Game Setup (changed by the game master before a game starts) ----------------
@@ -58,20 +61,27 @@ SETUP = {   # key: (label, lowest, highest)
     "holders": ("Clue Holders Each Session", 0, 10),
     "capital": ("Starting Capital", 1_000, 10_000_000),
     "contractValue": ("Contract Value", 100, 1_000_000),
-    "margin": ("Margin Per Contract", 0, 1_000_000),
     "limit": ("Position Limit", 1, 100),
 }
 
 
 def settings():
     return {"days": ROUNDS // 2, "seconds": ROUND_SECONDS, "holders": CLUE_HOLDERS, "capital": START_CAPITAL,
-            "contractValue": CONTRACT_VALUE, "margin": MARGIN_PER_CONTRACT, "limit": POS_LIMIT}
+            "contractValue": CONTRACT_VALUE, "limit": POS_LIMIT}
+
+
+def params():
+    """Rules every page may show: nothing private."""
+    return {"limit": POS_LIMIT, "mult": MULTIPLIER, "contractValue": CONTRACT_VALUE, "spread": HOUSE_SPREAD,
+            "spreadPts": S0 * HOUSE_SPREAD, "houseSize": HOUSE_SIZE, "lean": HOUSE_LEAN, "capital": START_CAPITAL,
+            "clueHolders": CLUE_HOLDERS, "roundSeconds": ROUND_SECONDS, "days": ROUNDS // 2, "shockMin": SHOCK_MIN,
+            "shockMax": SHOCK_MAX, "noiseSd": NOISE_SD,
+            "start": S0}
 
 
 def apply_settings(new):
     """Check and apply setup values. Returns an error message, or an empty string when applied."""
-    global ROUNDS, ROUND_SECONDS, CLUE_HOLDERS, START_CAPITAL, CONTRACT_VALUE, MARGIN_PER_CONTRACT
-    global POS_LIMIT, MULTIPLIER, CARRY_PER_ROUND
+    global ROUNDS, ROUND_SECONDS, CLUE_HOLDERS, START_CAPITAL, CONTRACT_VALUE, POS_LIMIT, MULTIPLIER
     s = settings()
     for key, (label, lo, hi) in SETUP.items():
         if key in new:
@@ -81,9 +91,8 @@ def apply_settings(new):
                 return f"{label} Must Be A Whole Number From {lo:,} To {hi:,}."
             s[key] = int(v)
     ROUNDS, ROUND_SECONDS, CLUE_HOLDERS = s["days"] * 2, s["seconds"], s["holders"]
-    START_CAPITAL, CONTRACT_VALUE, MARGIN_PER_CONTRACT, POS_LIMIT = s["capital"], s["contractValue"], s["margin"], s["limit"]
+    START_CAPITAL, CONTRACT_VALUE, POS_LIMIT = s["capital"], s["contractValue"], s["limit"]
     MULTIPLIER = CONTRACT_VALUE / S0
-    CARRY_PER_ROUND = TOTAL_CARRY / ROUNDS
     return ""
 
 
@@ -123,7 +132,7 @@ def to_tick(p):
 
 
 class Book:
-    """Limit order book: price-time priority, trade at the resting price, pre-trade limits."""
+    """Limit order book: price-time priority, trade at the resting price, pre-trade limits, no fees."""
 
     def __init__(self, limits):
         self.bids, self.asks = [], []          # [price, id, account, qty]
@@ -131,10 +140,8 @@ class Book:
         n = len(limits)
         self.pos = [0] * n
         self.cash = [0.0] * n                  # index points
-        self.fee_paid = [0.0] * n              # index points
         self.avg = [0.0] * n                   # average entry price of the open position
         self.realised = [0.0] * n              # profit locked in by closing trades, index points
-        self.fees = 0.0                        # fee income of the house, index points
         self.seq = 0
         self.last = None
         self.last_round = None
@@ -172,7 +179,7 @@ class Book:
             elif abs(dq) == abs(pos):
                 self.avg[t] = 0.0
 
-    def submit(self, t, side, price, qty, rnd=0, post_only=False):
+    def submit(self, t, side, price, qty, rnd=0, post_only=False, now=False):
         cut = max(qty - max(self.room(t, side), 0), 0)
         qty -= cut
         filled = 0
@@ -198,20 +205,16 @@ class Book:
             self.pos[seller] -= fill
             self.cash[buyer] -= fill * best[0]
             self.cash[seller] += fill * best[0]
-            for party in (buyer, seller):      # exchange fee, paid to the house
-                if party != HOUSE:
-                    self.cash[party] -= FUT_FEE_PTS * fill
-                    self.fee_paid[party] += FUT_FEE_PTS * fill
-                    self.cash[HOUSE] += FUT_FEE_PTS * fill
-                    self.fees += FUT_FEE_PTS * fill
             self.last = best[0]
             self.last_round = rnd
-            self.tape.append({"p": best[0], "q": fill, "b": buyer, "s": seller, "r": rnd, "taker": t})
+            self.tape.append({"p": best[0], "q": fill, "b": buyer, "s": seller, "r": rnd, "taker": t, "t": time.time()})
             qty -= fill
             filled += fill
             best[3] -= fill
             if best[3] == 0:
                 book.pop(i)
+        if qty > 0 and now:                    # a 'now' order fills what it can and the rest is dropped
+            return {"filled": filled, "rested": 0, "cut": cut, "dropped": qty}
         if qty > 0:
             self.seq += 1
             (self.bids if side == "B" else self.asks).append([price, self.seq, t, qty])
@@ -222,12 +225,14 @@ class Game:
     def __init__(self):
         self.humans = {}                        # seat -> token of the member in it
         self.names = {}                         # seat -> name (kept after a member leaves)
+        self.intro = set()                      # seats that have finished the how-to-play introduction
         self.rng = random.Random()
         self.reset()
 
     def reset(self):
         """New game: fresh news, flat accounts. Members who signed up keep their seats."""
-        self.shocks = [self.rng.gauss(0, SHOCK_SD) for _ in range(ROUNDS)]
+        self.shocks = [self.rng.choice((-1, 1)) * self.rng.uniform(SHOCK_MIN, SHOCK_MAX) for _ in range(ROUNDS)]
+        self.noise_total = 0.0                  # all the random noise so far (it adds to the news)
         self.game_id = self.rng.randrange(10 ** 9)    # lets a browser tell one game from the next
         self.book = Book([POS_LIMIT] * SEATS + [HOUSE_LIMIT])
         self.names = {t: n for t, n in self.names.items() if t in self.humans}
@@ -244,10 +249,13 @@ class Game:
         self.holders = {}                       # session index -> seats that see its news early
         self.clue_count = {}                    # seat -> clues received this game
         self.checks = []                        # end-of-session proof that profits sum to zero
-        self.hist = [[self.spot, None, 0]]      # spot, last futures trade, session index
+        self.pos_at_news = {}                   # session index -> every account's position when the news hit
+        self.ends = []                          # every account's profit or loss at the end of each session
         self.next_refresh = 0
-        self.next_hist = 0
+        self.new_phase()
         self.house_quote()
+        self.candles = []                       # [open, high, low, close, volume, taker-buy volume, spot, fair, session, slot]
+        self.new_candle()
 
     # ---------- trading hours ----------
     # Cash session = the stock market is open and the index prints live.
@@ -263,14 +271,64 @@ class Game:
         return "Cash Session" if (self.round if r is None else r) % 2 == 0 else "Overnight Session"
 
     def fair(self):
-        return self.spot + self.pending + CARRY_PER_ROUND * (ROUNDS - self.round)
+        """What the future is worth on public news alone: spot plus overnight news spot has not printed yet."""
+        return self.spot + self.pending
+
+    # ---------- the house market maker ----------
+    # The house does not know the news early, but it watches the orders it fills. When members keep
+    # buying from it, it guesses they know something and raises its prices; when they keep selling,
+    # it lowers them. So clue holders who trade push the futures away from spot before the news is
+    # public, and everyone can see it. When the news comes out, and at each new session, the house
+    # forgets the flow and centres on fair value again.
+    def new_phase(self):
+        """Start counting order flow afresh: at a new session and when the news goes public."""
+        self.flow_base = self.book.pos[HOUSE]   # house position when this phase began
+        self.tape_mark = len(self.book.tape)    # trades before this point are older than the latest news
+        self.flow = {"buy": 0, "sell": 0}       # contracts members bought (took offers) or sold (hit bids)
+
+    def lean(self):
+        """How far the house has moved its prices this phase: up when members bought from it."""
+        return max(-LEAN_CAP, min(LEAN_CAP, HOUSE_LEAN * (self.flow_base - self.book.pos[HOUSE])))
 
     def house_quote(self):
         # The house only posts quotes. It never takes a member's order, even a stale one after news.
+        # It shows a few price levels a side, each one further away by the lean of one level's size,
+        # so a big order moves the price as it fills, just as if it had come in as several small ones.
         self.book.cancel_all(HOUSE)
-        f = self.fair()
-        self.book.submit(HOUSE, "B", to_tick(f * (1 - HOUSE_FEE)), HOUSE_SIZE, self.round + 1, post_only=True)
-        self.book.submit(HOUSE, "S", to_tick(f * (1 + HOUSE_FEE)), HOUSE_SIZE, self.round + 1, post_only=True)
+        if self.status == "settled":
+            return
+        centre, step = self.fair() + self.lean(), HOUSE_LEAN * HOUSE_SIZE
+        for k in range(HOUSE_LEVELS):
+            self.book.submit(HOUSE, "B", to_tick(centre * (1 - HOUSE_SPREAD) - k * step), HOUSE_SIZE,
+                             self.round + 1, post_only=True)
+            self.book.submit(HOUSE, "S", to_tick(centre * (1 + HOUSE_SPREAD) + k * step), HOUSE_SIZE,
+                             self.round + 1, post_only=True)
+
+    def fut_price(self):
+        """The futures mark price: the middle of the best bid and offer. It carries the house's lean on order
+        flow and never goes stale the way an old trade does while the noise moves fair value."""
+        b = self.book
+        if b.bids and b.asks:
+            return (max(o[0] for o in b.bids) + min(o[0] for o in b.asks)) / 2
+        if len(b.tape) > self.tape_mark:
+            return b.last
+        return self.fair()
+
+    def drift(self, dt):
+        """Random noise between the news (Brownian motion). Cash hours move spot; overnight moves only the futures,
+        and spot catches up at the open, just like overnight news."""
+        step = self.rng.gauss(0, NOISE_SD * math.sqrt(dt / ROUND_SECONDS))
+        if self.round % 2 == 0:
+            self.spot += step
+        else:
+            self.pending += step
+        self.noise_total += step
+
+    def signal(self):
+        """Public hint that someone may know the news: how far the futures sit from fair value, and who is taking."""
+        price = self.fut_price()
+        return {"price": price, "gap": price - self.fair(), "buy": self.flow["buy"], "sell": self.flow["sell"],
+                "preNews": not self.news_out and self.status != "settled"}
 
     # ---------- private clues ----------
     def draw_clues(self):
@@ -302,6 +360,9 @@ class Game:
         if self.status == "settled" or self.news_out:
             return
         shock = self.shocks[self.round]
+        hint = self.signal()                    # what the futures said before anyone public knew
+        self.pos_at_news[self.round] = list(self.book.pos)   # each player's bet on this news
+        self.book.bids, self.book.asks = [], []  # news cancels every waiting order, so no one is caught at an old price
         self.news_out = True
         if self.round % 2 == 0:
             self.spot += shock                  # cash hours: the index moves at once
@@ -310,8 +371,11 @@ class Game:
             self.pending += shock               # overnight: only the future can react
             shown = None
         self.news.append({"r": self.round + 1, "day": self.day(), "session": self.session(),
-                          "shock": shock, "spot": shown, "i": len(self.hist) - 1})
+                          "shock": shock, "spot": shown, "i": len(self.candles) - 1,
+                          "lead": hint["gap"], "flowBuy": hint["buy"], "flowSell": hint["sell"]})
+        self.new_phase()
         self.house_quote()
+        self.candle_mark()
 
     def zero_sum_check(self, label):
         """Every buy is someone's sell, so members' profit plus the house's must be zero. Record the proof."""
@@ -330,7 +394,9 @@ class Game:
         if self.round % 2 == 0:                 # cash close: daily settlement, mark to market
             self.mtm.append({"r": f"Day {self.day()}", "px": self.mark(),
                              "eq": [self.pnl(t) for t in range(SEATS + 1)]})
-        self.spot += CARRY_PER_ROUND + self.pending     # after a night, the index gaps at the open
+        if self.round < ROUNDS - 1:             # the last session is scored at the final settlement
+            self.ends.append([self.pnl(t) for t in range(SEATS + 1)])
+        self.spot += self.pending               # after a night, the index gaps at the open
         self.pending = 0.0
         self.round += 1
         self.news_out = False
@@ -338,14 +404,18 @@ class Game:
             self.status = "settled"
             self.settle = self.spot
             self.book.bids, self.book.asks = [], []
-            self.hist.append([self.spot, self.book.last, ROUNDS - 1])
+            c = self.candles[-1]                # the last candle closes at the settlement price
+            c[1], c[2], c[3], c[6], c[7] = max(c[1], self.settle), min(c[2], self.settle), self.settle, self.settle, self.settle
             self.mtm.append({"r": "Final", "px": self.settle,
                              "eq": [self.pnl(t) for t in range(SEATS + 1)]})
+            self.ends.append([self.pnl(t) for t in range(SEATS + 1)])
             self.zero_sum_check("Final Settlement")
         else:
             self.remaining = ROUND_SECONDS
             self.deadline = time.time() + ROUND_SECONDS
+            self.new_phase()
             self.house_quote()
+            self.candle_mark()
             if self.status == "open":
                 self.draw_clues()
 
@@ -366,11 +436,34 @@ class Game:
         if not self.news_out and now >= self.deadline - ROUND_SECONDS / 2:
             self.release_news()
         if now >= self.next_refresh:
-            self.next_refresh = now + REFRESH_SECONDS
+            self.next_refresh = now + NOISE_STEP
+            self.drift(NOISE_STEP)
             self.house_quote()
-        if now >= self.next_hist:               # about 450 chart points a game, however long it runs
-            self.next_hist = now + max(REFRESH_SECONDS, ROUNDS * ROUND_SECONDS / 450)
-            self.hist.append([self.spot, self.book.last, self.round])
+        self.candle_mark()
+
+    # ---------- chart candles ----------
+    def slot(self):
+        """Which candle of this session the game clock is in. It stops while the game is paused."""
+        elapsed = ROUND_SECONDS - self.secs()
+        return max(0, min(int(elapsed / (ROUND_SECONDS / CANDLES_PER_SESSION)), CANDLES_PER_SESSION - 1))
+
+    def new_candle(self):
+        p = self.fut_price()
+        self.candles.append([p, p, p, p, 0, 0, self.spot, self.fair(), self.round, self.slot()])
+
+    def candle_mark(self, price=None, qty=0, buy=False):
+        """Move the current candle to the futures price now (or a trade price) and add any traded volume."""
+        if self.status == "settled":
+            return
+        c = self.candles[-1]
+        if (c[8], c[9]) != (self.round, self.slot()):
+            self.new_candle()
+            c = self.candles[-1]
+        p = self.fut_price() if price is None else price
+        c[1], c[2], c[3] = max(c[1], p), min(c[2], p), p
+        c[4] += qty
+        c[5] += qty if buy else 0
+        c[6], c[7] = self.spot, self.fair()
 
     def secs(self):
         if self.status == "open":
@@ -408,6 +501,7 @@ class Game:
         if seat in self.humans:
             self.book.cancel_all(seat)
             del self.humans[seat]
+            self.intro.discard(seat)
 
     def display(self, t):
         if t == HOUSE:
@@ -418,14 +512,8 @@ class Game:
 
     # ---------- money ----------
     def mark(self):
-        if self.settle is not None:
-            return self.settle
-        b = self.book
-        if b.last is not None and b.last_round == self.round + 1:
-            return b.last                       # a trade this session sets the mark
-        if b.bids and b.asks:                   # otherwise the mid of the best bid and offer
-            return (max(o[0] for o in b.bids) + min(o[0] for o in b.asks)) / 2
-        return self.fair()
+        """Accounts are valued at the futures price now: a trade from before the latest news is out of date."""
+        return self.settle if self.settle is not None else self.fut_price()
 
     def pnl(self, t):
         return (self.book.cash[t] + self.book.pos[t] * self.mark()) * MULTIPLIER
@@ -433,13 +521,7 @@ class Game:
     def equity(self, t):
         return START_CAPITAL + self.pnl(t)
 
-    def set_limit(self, t):
-        """Buying power: capital caps the contracts a member can hold, on top of the position limit."""
-        by_capital = int(self.equity(t) // MARGIN_PER_CONTRACT) if MARGIN_PER_CONTRACT > 0 else POS_LIMIT
-        self.book.limits[t] = max(min(POS_LIMIT, by_capital), 0)
-        return self.book.limits[t]
-
-    def order(self, seat, side, price, qty):
+    def order(self, seat, side, price, qty, now=False):
         if self.status != "open":
             return {"ok": False, "msg": "The Market Is Not Open."}
         if seat not in self.humans:
@@ -451,35 +533,88 @@ class Game:
         price = to_tick(price)
         if abs(price / self.fair() - 1) > PRICE_BAND:
             return {"ok": False, "msg": "Price Is More Than 10% From Fair Value."}
-        eff = self.set_limit(seat)
-        r = self.book.submit(seat, side, price, qty, self.round + 1)
+        self.book.limits[seat] = POS_LIMIT
+        n0 = len(self.book.tape)
+        r = self.book.submit(seat, side, price, qty, self.round + 1, now=now)
+        for x in self.book.tape[n0:]:           # remember which trades came before the news
+            x["pre"] = not self.news_out
+            self.candle_mark(x["p"], x["q"], side == "B")
+        self.flow["buy" if side == "B" else "sell"] += r["filled"]
+        if r["filled"]:
+            self.house_quote()                  # the house leans on the flow at once
         parts = []
         if r["filled"]:
-            parts.append(f"Filled {r['filled']}")
+            parts.append(f"{'Bought' if side == 'B' else 'Sold'} {r['filled']}")
         if r["rested"]:
-            parts.append(f"Resting {r['rested']} At {price:,.2f}")
+            parts.append(f"Waiting To {'Buy' if side == 'B' else 'Sell'} {r['rested']} At {price:,.2f}")
+        if r.get("dropped"):
+            parts.append(f"{r['dropped']} Not Filled: No One Was {'Selling' if side == 'B' else 'Buying'} At Your Price")
         if r["cut"]:
-            parts.append(f"Cut {r['cut']} By " + ("The Position Limit" if eff >= POS_LIMIT else "Your Buying Power"))
-        if not r["filled"] and not r["rested"]:
-            parts.append("Your Position And Resting Orders Already Use The Limit")
+            parts.append(f"Cut {r['cut']} By The Position Limit")
+        if not r["filled"] and not r["rested"] and not r.get("dropped"):
+            parts.append("Your Position And Waiting Orders Already Use The Limit")
         return {"ok": True, "msg": ". ".join(parts) + "."}
+
+    # ---------- what each player learns ----------
+    def report(self, t):
+        """One row per finished session: did you have a clue, how big was your bet when the news hit, what did it make."""
+        rows = []
+        for r, end in enumerate(self.ends):
+            before = self.ends[r - 1][t] if r else 0.0
+            pos = self.pos_at_news.get(r, [0] * (SEATS + 1))[t]
+            rows.append({"r": r + 1, "day": r // 2 + 1, "session": self.session(r), "shock": self.shocks[r],
+                         "clue": t in self.holders.get(r, []), "pos": pos, "pnl": end[t] - before,
+                         "lead": self.news[r]["lead"] if r < len(self.news) else 0.0})
+        return rows
+
+    def lessons(self):
+        """Class results for the debrief: does knowing more, and betting bigger on it, pay?"""
+        clue, plain, follow, against = [], [], [], []
+        for r, end in enumerate(self.ends):
+            pos_now = self.pos_at_news.get(r)
+            if pos_now is None:
+                continue
+            lead = self.news[r]["lead"]
+            for t in self.names:
+                if t >= SEATS or (t not in self.humans and self.clean(t)):
+                    continue
+                pnl = end[t] - (self.ends[r - 1][t] if r else 0.0)
+                pos = pos_now[t]
+                if t in self.holders.get(r, []):
+                    clue.append((abs(pos), pnl))
+                else:
+                    plain.append((abs(pos), pnl))
+                    if pos and abs(lead) >= 1:
+                        (follow if (pos > 0) == (lead > 0) else against).append(pnl)
+        avg = lambda xs: sum(xs) / len(xs) if xs else None
+        called = [n for n in self.news if abs(n["lead"]) >= 1]
+        right = [n for n in called if (n["lead"] > 0) == (n["shock"] > 0)]
+        return {"sessions": len(self.ends),
+                "clueSize": avg([a for a, _ in clue]), "cluePnl": avg([p for _, p in clue]), "clueN": len(clue),
+                "plainSize": avg([a for a, _ in plain]), "plainPnl": avg([p for _, p in plain]), "plainN": len(plain),
+                "followPnl": avg(follow), "followN": len(follow), "againstPnl": avg(against), "againstN": len(against),
+                "hinted": len(called), "hintedRight": len(right)}
 
     # ---------- views ----------
     def clock(self):
         secs = self.secs()
         return {"status": self.status, "gameId": self.game_id, "day": self.day(), "days": ROUNDS // 2,
-                "session": self.session(),
+                "round": self.round, "rounds": ROUNDS, "session": self.session(),
                 "cashOpen": self.cash_open(), "newsOut": self.news_out, "secondsLeft": secs,
                 "newsIn": max(secs - ROUND_SECONDS / 2, 0), "spot": self.spot, "fair": self.fair(),
-                "indicatedOpen": self.spot + self.pending + CARRY_PER_ROUND,
-                "carryLeft": CARRY_PER_ROUND * (ROUNDS - self.round), "last": self.book.last,
-                "settle": self.settle, "hist": self.hist, "news": self.news,
+                "pending": self.pending, "indicatedOpen": self.spot + self.pending, "last": self.book.last,
+                "settle": self.settle, "candles": self.candles, "candlesPerSession": CANDLES_PER_SESSION,
+                "candleSeconds": ROUND_SECONDS / CANDLES_PER_SESSION, "news": self.news, "signal": self.signal(),
                 "volume": sum(x["q"] for x in self.book.tape), "people": len(self.humans), "seats": SEATS,
-                "joinUrl": JOIN_URL}
+                "joinUrl": JOIN_URL, "params": params()}
 
     def overview(self):
         """What the projector page shows: prices and public news only, nothing private."""
-        return self.clock()
+        out = self.clock()
+        out["lessons"] = self.lessons() if self.status == "settled" else None
+        out["introDone"] = len(self.intro & set(self.humans))
+        out["top5"] = [{"name": r["name"], "pnl": r["pnl"]} for r in self.top(5)]   # the members' page shows this too
+        return out
 
     def levels(self, orders, seat, reverse):
         agg = {}
@@ -508,51 +643,44 @@ class Game:
                          "equity": None if t == HOUSE else self.equity(t),
                          "realised": b.realised[t] * MULTIPLIER,
                          "unrealised": b.pos[t] * (mark - b.avg[t]) * MULTIPLIER,
-                         "fees": b.fee_paid[t] * MULTIPLIER,
                          "openBuy": b.open_qty(t, "B"), "openSell": b.open_qty(t, "S"),
-                         "clues": self.clue_count.get(t, 0), "clueNow": t in now})
+                         "clues": self.clue_count.get(t, 0), "clueNow": t in now, "intro": t in self.intro})
         return rows
 
     def state(self, seat):
         b = self.book
-        eff = self.set_limit(seat)
+        b.limits[seat] = POS_LIMIT
         mark, pos = self.mark(), b.pos[seat]
         holders = self.holders.get(self.round, [])
         clue = None
         if seat in holders and self.status != "settled":
             clue = {"id": self.round, "value": self.shocks[self.round], "public": self.news_out,
                     "holders": len(holders)}
-        margin_used = abs(pos) * MARGIN_PER_CONTRACT
         me = {
             "seat": seat, "pos": pos, "avg": b.avg[seat], "mark": mark, "pnl": self.pnl(seat),
             "capital": START_CAPITAL, "equity": self.equity(seat),
             "realisedUsd": b.realised[seat] * MULTIPLIER, "unrealisedUsd": pos * (mark - b.avg[seat]) * MULTIPLIER,
-            "feesUsd": b.fee_paid[seat] * MULTIPLIER, "marginUsed": margin_used,
-            "freeCapital": self.equity(seat) - margin_used, "effLimit": eff,
-            "marginCall": self.equity(seat) < margin_used,
             "roomBuy": max(b.room(seat, "B"), 0), "roomSell": max(b.room(seat, "S"), 0),
             "orders": [{"id": o[1], "side": "Buy", "p": o[0], "q": o[3]} for o in b.bids if o[2] == seat]
                     + [{"id": o[1], "side": "Sell", "p": o[0], "q": o[3]} for o in b.asks if o[2] == seat],
             "clue": clue, "cluesSoFar": self.clue_count.get(seat, 0),
             "myFair": self.fair() + (clue["value"] if clue and not clue["public"] else 0),
-            "mtm": [{"r": m["r"], "px": m["px"], "eq": m["eq"][seat]} for m in self.mtm],
+            "report": self.report(seat), "introDone": seat in self.intro,
         }
         out = self.clock()
         out.update({
             "joined": True, "name": self.names.get(seat, "Member"), "me": me,
-            "params": {"limit": POS_LIMIT, "mult": MULTIPLIER, "contractValue": CONTRACT_VALUE, "fee": HOUSE_FEE,
-                       "houseSize": HOUSE_SIZE, "marginPer": MARGIN_PER_CONTRACT, "capital": START_CAPITAL,
-                       "futFeeUsd": FUT_FEE_PTS * MULTIPLIER, "clueHolders": CLUE_HOLDERS,
-                       "roundSeconds": ROUND_SECONDS},
             "book": {"asks": self.levels(b.asks, seat, False), "bids": self.levels(b.bids, seat, True)},
-            "tape": [{"p": x["p"], "q": x["q"], "r": x["r"],
+            "tape": [{"p": x["p"], "q": x["q"], "r": x["r"], "took": "Buy" if x["taker"] == x["b"] else "Sell",
+                      "pre": x.get("pre", False), "t": x.get("t", 0),
                       "you": "Bought" if x["b"] == seat else "Sold" if x["s"] == seat else "",
-                      "house": HOUSE in (x["b"], x["s"])} for x in b.tape[-30:]][::-1],
+                      "house": HOUSE in (x["b"], x["s"])} for x in b.tape[-40:]][::-1],
             "top5": self.top(5, seat), "board": None,
         })
         if self.status == "settled":            # final standings are public once the game is over
             rows = self.accounts()
-            out.update(board=rows, sumPnl=sum(r["pnl"] for r in rows), sumPos=sum(r["pos"] for r in rows))
+            out.update(board=rows, sumPnl=sum(r["pnl"] for r in rows), sumPos=sum(r["pos"] for r in rows),
+                       lessons=self.lessons())
         return out
 
     def monitor(self):
@@ -562,20 +690,21 @@ class Game:
         out = self.clock()
         out.update({
             "accounts": rows, "sumPnl": sum(r["pnl"] for r in rows), "sumPos": sum(r["pos"] for r in rows),
-            "feesUsd": b.fees * MULTIPLIER, "mark": self.mark(),
+            "mark": self.mark(), "lean": self.lean(), "lessons": self.lessons(),
+            "introDone": len(self.intro & set(self.humans)),
             "book": {"asks": sorted(({"p": o[0], "q": o[3], "who": self.display(o[2])} for o in b.asks),
                                     key=lambda o: o["p"]),
                      "bids": sorted(({"p": o[0], "q": o[3], "who": self.display(o[2])} for o in b.bids),
                                     key=lambda o: -o["p"])},
             "tape": [{"p": x["p"], "q": x["q"], "r": x["r"], "buyer": self.display(x["b"]),
-                      "seller": self.display(x["s"]), "taker": self.display(x["taker"])}
+                      "seller": self.display(x["s"]), "taker": self.display(x["taker"]), "pre": x.get("pre", False)}
                      for x in b.tape[-80:]][::-1],
             "schedule": [{"r": r + 1, "day": r // 2 + 1, "session": self.session(r), "shock": self.shocks[r],
                           "state": "Public" if r < self.round or (r == self.round and self.news_out) else
                                    "This Session" if r == self.round else "Later",
                           "holders": [self.display(t) for t in self.holders.get(r, [])]} for r in range(ROUNDS)],
-            "finalSpot": S0 + CARRY_PER_ROUND * ROUNDS + sum(self.shocks), "checks": self.checks,
-            "settings": dict(settings(), mult=MULTIPLIER, houseFee=HOUSE_FEE,
+            "finalSpot": S0 + sum(self.shocks) + self.noise_total, "noise": self.noise_total, "checks": self.checks,
+            "settings": dict(settings(), mult=MULTIPLIER, spread=HOUSE_SPREAD, lean=HOUSE_LEAN,
                              limits={k: [lo, hi] for k, (_, lo, hi) in SETUP.items()}),
         })
         return out
@@ -586,7 +715,7 @@ LOCK = threading.RLock()
 ADMIN_KEY = os.environ.get("GAME_ADMIN_KEY", "")   # optional key for a game master on another computer
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATE_FILE = os.path.join(HERE, "game_state.pkl")
-STATE_VERSION = 8            # raise when the shape of Game changes, so an old save is ignored
+STATE_VERSION = 10           # raise when the shape of Game changes, so an old save is ignored
 
 
 def save():
@@ -689,7 +818,8 @@ class Handler(BaseHTTPRequestHandler):
             if u.path == "/api/state":
                 seat = GAME.seat_of(q.get("token", [None])[0])
                 if seat is None:
-                    out = {"joined": False, "people": len(GAME.humans), "seats": SEATS, "status": GAME.status}
+                    out = {"joined": False, "people": len(GAME.humans), "seats": SEATS, "status": GAME.status,
+                           "params": params()}
                 else:
                     out = GAME.state(seat)
                 out["isAdmin"] = self.is_admin()
@@ -728,6 +858,9 @@ class Handler(BaseHTTPRequestHandler):
         seat = GAME.seat_of(token)
         if seat is None:
             return {"ok": False, "msg": "Sign Up First."}
+        if self.path == "/api/intro":           # the member finished (or skipped) the how-to-play introduction
+            GAME.intro.add(seat)
+            return {"ok": True, "msg": ""}
         if self.path == "/api/leave":
             GAME.leave(seat)
             return {"ok": True, "msg": ""}
@@ -736,7 +869,7 @@ class Handler(BaseHTTPRequestHandler):
             if isinstance(price, bool) or isinstance(qty, bool) or not isinstance(price, (int, float)) \
                     or not isinstance(qty, int):
                 return {"ok": False, "msg": "Enter A Price And A Quantity."}
-            return GAME.order(seat, d.get("side"), float(price), qty)
+            return GAME.order(seat, d.get("side"), float(price), qty, now=d.get("now") is True)
         if self.path == "/api/cancel":
             ok = GAME.book.cancel(seat, int(d.get("id", -1)))
             return {"ok": ok, "msg": "Order Cancelled." if ok else "Order Not Found."}

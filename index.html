@@ -3,345 +3,864 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Futures Trading Game</title>
+<title>UST500 Futures · Traders@UST</title>
 <style>
-:root{--mast:#073B3A;--mast-t:#F4EDDF;--mast-s:#BAD0CA;--bg:#FAF7F0;--card:#FFFDF8;--band:#F1ECE0;
---rule:#E5DDCD;--rule2:#D4C9B2;--teal:#00857C;--text:#11302E;--sub:#586660;--up:#1B7A5A;--dn:#B0432D;--gold:#A07A2C}
+:root{--bg:#050B1E;--panel:#0A1530;--panel2:#0F1E42;--line:#172A55;--line2:#22386B;--text:#E6ECFA;--sub:#8EA0C8;--mute:#5A6B93;
+--teal:#3D8BFF;--blue:#3D8BFF;--up:#2EBD85;--dn:#F0616D;--gold:#E0B85A;--upbg:rgba(46,189,133,.15);--dnbg:rgba(240,97,109,.15);
+/* names the intro and report code use */
+--card:var(--panel);--band:var(--panel2);--rule:var(--line);--rule2:var(--line2);--mast:#040A1C;--mast-t:#E6ECFA;--mast-s:#A9BCE6;
+--teal-l:rgba(61,139,255,.12);--up-l:var(--upbg);--dn-l:var(--dnbg);--gold-l:rgba(224,184,90,.14);--shadow:none}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:400 14px/1.45 "Avenir Next",system-ui,sans-serif}
-.mast{background:var(--mast);padding:18px 28px;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
-.mast h1{font:400 26px Optima,serif;color:var(--mast-t);margin:0}
-.mast p{margin:2px 0 0;color:var(--mast-s);font-size:13px}
-.mast .right{margin-left:auto;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-.mast .who{color:var(--mast-t);font-size:14px;white-space:nowrap}
-.mast a{color:var(--mast-s);font-weight:500;white-space:nowrap}
-select,input,button{font:500 14px "Avenir Next",system-ui,sans-serif;color:var(--text)}
-input{background:var(--card);border:1px solid var(--rule2);border-radius:6px;padding:7px 9px;width:100%}
-button{background:var(--band);border:1px solid var(--rule2);border-radius:6px;padding:7px 13px;cursor:pointer;white-space:nowrap}
-button:hover{border-color:var(--teal)}
-button.buy{background:var(--up);border-color:var(--up);color:#fff}
-button.sell{background:var(--dn);border-color:var(--dn);color:#fff}
-button:disabled{opacity:.45;cursor:not-allowed}
-.strip{display:flex;gap:26px;padding:12px 28px;background:var(--band);border-bottom:1px solid var(--rule);flex-wrap:wrap;align-items:center}
-.strip div{white-space:nowrap}.strip b{font:400 17px Optima,serif;margin-left:6px}
-main{padding:22px 28px 40px;max-width:1500px;margin:0 auto}
-.grid{display:grid;grid-template-columns:1.05fr 1fr 1.05fr;gap:18px;align-items:start}
-@media(max-width:1050px){.grid{grid-template-columns:1fr}}
-.sec{font:400 16px Optima,serif;color:var(--teal);margin:0 0 8px}
-.card{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:16px;margin-bottom:18px}
-.kv{display:grid;grid-template-columns:1fr auto;gap:5px 14px}
-.kv span{color:var(--sub)}.kv b{font:400 16px Optima,serif;text-align:right;white-space:nowrap}
-.big{font:400 30px Optima,serif}
-table{width:100%;border-collapse:collapse}
-th{font-weight:500;font-size:13px;color:var(--sub);text-align:right;padding:5px 6px;border-bottom:1px solid var(--teal);white-space:nowrap}
-td{padding:4px 6px;text-align:right;border-bottom:1px solid var(--rule);font-family:Optima,serif;font-size:15px;white-space:nowrap}
-th:first-child,td:first-child{text-align:left}
-td.l,th.l{text-align:left;font-family:"Avenir Next",system-ui,sans-serif;font-size:13px}
-.up{color:var(--up)}.dn{color:var(--dn)}.mut{color:var(--sub);font-size:13px}
-tr.ask td:first-child{color:var(--dn)}tr.bid td:first-child{color:var(--up)}
-tr.px{cursor:pointer}tr.px:hover td{background:var(--band)}
-tr.me td{background:var(--band)}
-.mid td{background:var(--band);text-align:center;font-family:"Avenir Next",system-ui,sans-serif;font-size:13px;color:var(--sub)}
-.tag{font:500 12px "Avenir Next",system-ui,sans-serif;padding:1px 7px;border-radius:9px;background:var(--band);color:var(--sub);margin-left:4px}
-.tag.you{background:var(--teal);color:#fff}.tag.house{background:var(--gold);color:#fff}
-.row{display:grid;grid-template-columns:1fr 1fr auto auto;gap:8px;align-items:end;margin-top:12px}
-.row label{font-size:12px;color:var(--sub);display:block;margin-bottom:3px}
-.msg{min-height:20px;margin-top:8px;font-size:13px;color:var(--sub)}
-.meter{position:relative;height:14px;background:var(--band);border-radius:7px;margin:8px 0 2px}
-.meter i{position:absolute;top:0;bottom:0;border-radius:7px}
-.meter u{position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--text)}
-.scale{display:flex;justify-content:space-between;font-size:12px;color:var(--sub)}
-.clue{background:var(--band);border-radius:8px;padding:11px 13px;margin-bottom:12px}
-.clue.live{background:var(--mast);color:var(--mast-t)}.clue.live .mut{color:var(--mast-s)}
-.scroll{max-height:250px;overflow:auto}
-summary{cursor:pointer;color:var(--teal);font-weight:500}
-details li{margin:4px 0}
-.banner{background:var(--mast);color:var(--mast-t);border-radius:10px;padding:14px 18px;margin-bottom:18px;font:400 18px Optima,serif}
-.joinbox{max-width:520px;margin:40px auto}
-.pop{position:fixed;inset:0;background:rgba(7,59,58,.55);display:flex;align-items:center;justify-content:center;z-index:9;padding:20px}
-.pop div{background:var(--card);border-radius:14px;padding:28px 34px;max-width:440px;text-align:center;border:1px solid var(--rule2)}
-.pop h3{font:400 18px Optima,serif;color:var(--teal);margin:0 0 6px}
-.pop b{display:block;font:400 54px Optima,serif;line-height:1.1;margin:6px 0}
-.pop p{color:var(--sub);margin:8px 0 16px}
+html,body{background:var(--bg)}
+body{margin:0;color:var(--text);font:400 13px/1.45 "Inter","Segoe UI",system-ui,-apple-system,sans-serif;font-variant-numeric:tabular-nums}
+h1,h2,h3{margin:0;font-weight:600}
+button,input{font:600 13px "Inter","Segoe UI",system-ui,sans-serif;color:var(--text)}
+button{background:var(--panel2);border:1px solid var(--line2);border-radius:6px;padding:6px 12px;cursor:pointer;white-space:nowrap}
+button:hover:not(:disabled){border-color:var(--teal)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.primary{background:var(--teal);border-color:var(--teal);color:#040A1C}
+input{background:var(--panel2);border:1px solid var(--line2);border-radius:6px;padding:8px 10px;width:100%}
+input:focus,button:focus-visible{outline:1px solid var(--teal);outline-offset:0}
 .hide{display:none!important}
-footer{color:var(--sub);font-size:12px;padding:0 28px 26px;max-width:1500px;margin:0 auto}
+.up{color:var(--up)}.dn{color:var(--dn)}.mut{color:var(--sub)}.gold{color:var(--gold)}.small{font-size:12px}
+
+/* top bar */
+.top{display:flex;align-items:center;gap:22px;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.brand{font-weight:800;letter-spacing:.02em;color:var(--teal);font-size:14px;white-space:nowrap}
+.sym b{display:block;font-size:17px;line-height:1.1}.sym span{font-size:11.5px;color:var(--sub)}
+.lastpx b{display:block;font-size:22px;line-height:1.1}.lastpx span{font-size:11.5px;color:var(--sub)}
+.hstats{display:flex;gap:20px;flex-wrap:wrap}
+.hs span{display:block;font-size:11px;color:var(--sub);white-space:nowrap}
+.hs b{display:block;font-size:13.5px;font-weight:600;white-space:nowrap}
+.hs .mini{height:3px;background:var(--line2);border-radius:2px;margin-top:3px;position:relative;width:76px}
+.hs .mini i{position:absolute;left:0;top:0;bottom:0;background:var(--teal);border-radius:2px}
+.hs .mini u{position:absolute;left:50%;top:-2px;bottom:-2px;width:2px;background:var(--gold)}
+@media(max-width:1500px){.hs.opt{display:none}}
+.hright{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.hright a{color:var(--sub);font-size:12px}
+.pill{font-weight:800;font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:999px;background:var(--panel2);color:var(--sub)}
+.pill.open{background:var(--up);color:#040A1C}.pill.paused{background:var(--gold);color:#040A1C}.pill.settled{background:var(--teal);color:#040A1C}
+.who{font-weight:600;color:var(--text);white-space:nowrap}
+
+/* terminal grid */
+.term{display:grid;gap:4px;padding:4px;grid-template-columns:minmax(0,1fr) 290px 320px;
+  grid-template-areas:"chart book order" "chart trades coach" "bottom bottom acct"}
+.panel{background:var(--panel);border-radius:6px;min-width:0;display:flex;flex-direction:column}
+.p-chart{grid-area:chart;min-height:max(470px,calc(100vh - 330px))}.p-book{grid-area:book}.p-trades{grid-area:trades}.p-order{grid-area:order}
+.p-coach{grid-area:coach}.p-bottom{grid-area:bottom}.p-acct{grid-area:acct}
+@media(max-width:1250px){.term{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"chart chart" "order book" "coach trades" "acct acct" "bottom bottom"}.p-chart{min-height:560px}}
+@media(max-width:760px){.term{grid-template-columns:1fr;grid-template-areas:"chart" "order" "coach" "acct" "book" "trades" "bottom"}.p-chart{min-height:470px}.hstats{gap:12px}.top{gap:12px}}
+.phead{display:flex;align-items:center;gap:12px;padding:8px 12px;border-bottom:1px solid var(--line);min-height:36px;flex-wrap:wrap}
+.ptitle{font-weight:700;font-size:13px}
+.phead .r{margin-left:auto;color:var(--sub);font-size:11.5px}
+
+/* chart */
+.ohlc{font-size:11.5px;color:var(--sub);display:flex;gap:10px;flex-wrap:wrap}
+.ohlc b{font-weight:600}
+.legend{display:flex;gap:12px;font-size:11.5px;color:var(--sub);margin-left:auto}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:4px}
+.chartbox{position:relative;flex:1;min-height:250px}
+.chartbox svg,.volbox svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.volbox{position:relative;height:96px;border-top:1px solid var(--line)}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,11,30,.6);z-index:2}
+.overlay>div{background:var(--panel2);border:1px solid var(--line2);border-radius:10px;padding:18px 24px;text-align:center}
+.overlay b{display:block;font-size:20px;margin-bottom:4px}
+.overlay .row{display:flex;gap:8px;justify-content:center;margin-top:12px}
+.sig{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px 14px;align-items:center;padding:8px 12px;border-top:1px solid var(--line)}
+.sig .lab{font-size:11px;color:var(--sub);font-weight:700;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+.gauge{position:relative;height:16px;border-radius:4px;background:linear-gradient(90deg,rgba(240,97,109,.35),rgba(255,255,255,.04) 50%,rgba(46,189,133,.35))}
+.gauge u{position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--line2)}
+.gauge i{position:absolute;top:1px;bottom:1px;width:5px;margin-left:-2.5px;border-radius:2px;background:var(--text);transition:left .5s}
+.flow{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--panel2)}
+.flow i{display:block;height:100%;transition:width .4s}
+.sig .val{font-weight:700;font-size:13px;white-space:nowrap;text-align:right;min-width:92px}
+.verdict{grid-column:1/-1;font-size:12.5px;font-weight:700}
+
+/* order book and trades */
+table{width:100%;border-collapse:collapse}
+th{font-weight:500;font-size:11.5px;color:var(--sub);text-align:right;padding:4px 10px;white-space:nowrap}
+td{padding:2px 10px;text-align:right;font-size:12.5px;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+td.l,th.l{text-align:left}
+.book tr{position:relative;cursor:pointer}
+.book td{position:relative;z-index:1;height:20px}
+.book tr:hover td{background:rgba(255,255,255,.04)}
+.book .depth{position:absolute;right:0;top:1px;bottom:1px;z-index:0;border-radius:2px}
+.book .ask td:first-child{color:var(--dn)}.book .bid td:first-child{color:var(--up)}
+.book .me td:first-child:after{content:"●";color:var(--teal);font-size:8px;margin-left:5px;vertical-align:middle}
+.midrow{display:flex;align-items:baseline;gap:10px;padding:6px 10px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.midrow b{font-size:19px}
+.midrow span{font-size:11.5px;color:var(--sub)}
+.trades{overflow:auto;flex:1;max-height:290px}
+.trades td{height:19px}
+
+/* order entry */
+.otabs{display:flex;gap:16px;padding:0 12px;border-bottom:1px solid var(--line)}
+.otabs button{background:none;border:0;border-bottom:2px solid transparent;border-radius:0;padding:10px 0 8px;color:var(--sub);font-size:13.5px}
+.otabs button.on{color:var(--gold);border-bottom-color:var(--gold)}
+.obody{padding:10px 12px 12px;display:flex;flex-direction:column;gap:9px}
+.orow{display:flex;justify-content:space-between;font-size:12px;color:var(--sub)}
+.orow b{color:var(--text);font-weight:600}
+.field{position:relative;display:flex;align-items:center;background:var(--panel2);border:1px solid var(--line2);border-radius:6px;padding:0 10px;height:40px}
+.field:focus-within{border-color:var(--teal)}
+.field label{font-size:12px;color:var(--sub);white-space:nowrap;margin-right:8px}
+.field input{border:0;background:none;text-align:right;padding:0;font-size:14px;outline:none}
+.field .unit{font-size:11.5px;color:var(--sub);margin-left:8px;white-space:nowrap}
+.field .mk{flex:1;text-align:right;color:var(--sub);font-weight:600}
+.field button{padding:3px 8px;font-size:11.5px;margin-left:8px}
+.slider{-webkit-appearance:none;appearance:none;width:100%;height:4px;background:var(--line2);border-radius:2px;border:0;padding:0;margin:6px 0 0}
+.slider::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:3px;transform:rotate(45deg);background:var(--text);border:3px solid var(--panel);cursor:pointer}
+.slider::-moz-range-thumb{width:12px;height:12px;border-radius:3px;background:var(--text);border:3px solid var(--panel);cursor:pointer}
+.marks{display:flex;justify-content:space-between;font-size:10.5px;color:var(--mute)}
+.marks span{cursor:pointer}
+.bs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:2px}
+.bs button{padding:11px 6px;font-size:14.5px;border:0;color:#fff}
+button.buy{background:var(--up)}button.sell{background:var(--dn)}
+button.buy:hover:not(:disabled),button.sell:hover:not(:disabled){filter:brightness(1.1)}
+.bsinfo{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11.5px;color:var(--sub)}
+.bsinfo b{color:var(--text);font-weight:600}
+.msg{min-height:18px;font-size:12px;color:var(--sub)}
+.msg.bad{color:var(--dn)}
+.cluebar{margin:10px 12px 0;border-radius:8px;padding:9px 12px;background:var(--panel2);border:1px solid var(--line2)}
+.cluebar.live{background:linear-gradient(90deg,rgba(224,184,90,.22),rgba(224,184,90,.06));border-color:var(--gold);animation:glow 2s ease-in-out infinite}
+@keyframes glow{50%{box-shadow:0 0 0 3px rgba(224,184,90,.18)}}
+.cluebar .t{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--sub)}
+.cluebar.live .t{color:var(--gold)}
+.cluebar .v{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.cluebar .v b{font-size:22px}
+.cluebar .v span{font-size:11.5px;color:var(--sub)}.cluebar .v span b{font-size:13px;color:var(--text)}
+
+/* bet sizer */
+.coach{padding:10px 12px 12px}
+.coach .clab{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--sub)}
+.coach .head{font-weight:700;font-size:14px;margin:2px 0 8px}
+.coach.edge .head{color:var(--up)}.coach.warn .head{color:var(--gold)}
+.coach .sizes{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px;font-size:12px}
+.coach .sizes button{padding:4px 10px;font-size:12px}
+.stats3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.st3{background:var(--panel2);border-radius:6px;padding:7px 9px;min-width:0}
+.st3 span{display:block;font-size:10px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st3 b{display:block;font-size:18px;font-weight:600;line-height:1.25;white-space:nowrap}
+.st3 i{display:block;font-style:normal;font-size:10.5px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.minichart{width:100%;display:block;margin-top:8px}
+.facts{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 4px}
+.facts div{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 12px;text-align:center;min-width:84px}
+.facts b{display:block;font-size:20px;font-weight:600;color:var(--blue)}
+.facts span{font-size:10.5px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.05em}
+
+/* bottom tabs and account */
+.btabs{display:flex;gap:18px;padding:0 12px;border-bottom:1px solid var(--line);overflow-x:auto}
+.btabs button{background:none;border:0;border-bottom:2px solid transparent;border-radius:0;padding:10px 0 8px;color:var(--sub)}
+.btabs button.on{color:var(--text);border-bottom-color:var(--gold)}
+.bpane{padding:4px 2px 10px;overflow:auto;max-height:330px}
+.bpane th{border-bottom:1px solid var(--line)}
+.bpane td{height:28px;border-bottom:1px solid rgba(23,42,85,.6)}
+.bpane .empty{padding:18px 12px;color:var(--mute);font-size:12.5px}
+.tag{font:700 10.5px "Inter","Segoe UI",sans-serif;padding:2px 7px;border-radius:4px;background:var(--panel2);color:var(--sub);margin-left:4px;letter-spacing:.02em}
+.tag.b{background:var(--upbg);color:var(--up)}.tag.s{background:var(--dnbg);color:var(--dn)}.tag.you{background:var(--teal);color:#040A1C}
+tr.me td{background:rgba(61,139,255,.1)}
+tr.cl td{background:rgba(224,184,90,.08)}
+.acct{padding:10px 12px 12px}
+.pnlbig{font-size:28px;font-weight:600;line-height:1.15}
+.kv{display:grid;grid-template-columns:1fr auto;gap:5px 10px;font-size:12.5px;margin-top:10px}
+.kv span{color:var(--sub)}.kv b{text-align:right;font-weight:600}
+.meter{position:relative;height:8px;background:var(--panel2);border-radius:4px;margin:12px 0 3px}
+.meter i{position:absolute;top:0;bottom:0;border-radius:4px;transition:all .4s}
+.meter u{position:absolute;left:50%;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:var(--sub)}
+.scale{display:flex;justify-content:space-between;font-size:11px;color:var(--sub)}
+
+/* sign-up, pop-ups, toast, report */
+.joinbox{max-width:460px;margin:60px auto;padding:0 14px}
+.joinbox .panel{padding:22px}
+.joinbox h2{font-size:22px}
+.joinbox p{color:var(--sub);margin:6px 0 16px}
+.joinrow{display:grid;grid-template-columns:1fr auto;gap:8px}
+.joinrow button{padding:8px 16px}
+.pop{position:fixed;inset:0;background:rgba(3,8,24,.75);display:flex;align-items:center;justify-content:center;z-index:30;padding:16px}
+.pop>div{background:var(--panel);border:1px solid var(--line2);border-radius:14px;padding:24px 28px;max-width:440px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5);animation:popin .3s ease}
+.pop h3{font-size:12px;color:var(--gold);letter-spacing:.08em;text-transform:uppercase;font-weight:800}
+.pop .val{display:block;font-size:54px;font-weight:600;line-height:1.1;margin:8px 0}
+.pop p{color:var(--sub);margin:8px 0 16px;font-size:14px}
+.pop p b{color:var(--text)}
+.pop .wide{max-width:860px;width:100%;text-align:left;max-height:calc(100vh - 32px);overflow:auto}
+@keyframes popin{from{transform:scale(.9);opacity:0}to{transform:none;opacity:1}}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:25;background:var(--panel2);border:1px solid var(--line2);border-left:4px solid var(--gold);border-radius:10px;padding:12px 16px;max-width:min(560px,calc(100vw - 24px));box-shadow:0 12px 40px rgba(0,0,0,.45);animation:toastin .35s ease;display:flex;gap:12px;align-items:flex-start}
+.toast b{font-size:18px;display:block}.toast span{color:var(--sub);font-size:13px}.toast span b{display:inline;font-size:13px;color:var(--text)}
+.toast button{background:none;border:0;color:var(--sub);font-size:18px;padding:0 2px;line-height:1}
+@keyframes toastin{from{transform:translate(-50%,30px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+.reportgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0 12px}
+@media(max-width:700px){.reportgrid{grid-template-columns:1fr}}
+.rtile{border-radius:8px;padding:10px 12px;background:var(--panel2)}
+.rtile span{font-size:11px;color:var(--sub);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.rtile b{display:block;font-size:22px;font-weight:600}
+.rtile i{display:block;font-style:normal;font-size:12px;color:var(--sub)}
+.rtile.clueT{background:rgba(224,184,90,.14)}
+.lesson{background:rgba(61,139,255,.1);border-radius:8px;padding:10px 14px;margin:10px 0}
+.rules li{margin:5px 0;color:var(--sub)}.rules b{color:var(--text)}
+
+/* ---------- intro walkthrough ---------- */
+.intro{position:fixed;inset:0;z-index:40;background:rgba(3,8,24,.85);display:flex;align-items:center;justify-content:center;padding:14px}
+.ipanel{background:var(--card);border-radius:18px;width:100%;max-width:800px;max-height:calc(100vh - 28px);overflow:auto;box-shadow:0 30px 80px rgba(0,0,0,.4);display:flex;flex-direction:column}
+.ihead{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--rule)}
+.ihead .step{font-size:12.5px;font-weight:700;color:var(--teal);letter-spacing:.06em;text-transform:uppercase}
+.ihead button{margin-left:auto;padding:6px 12px;font-size:13.5px}
+.istage{position:relative;margin:16px 18px 0;background:var(--mast);border-radius:14px;overflow:hidden;min-height:150px}
+.istage svg{display:block;width:100%;height:auto}
+.istage text{font-family:"Avenir Next","Segoe UI",system-ui,sans-serif}
+.replay{background:transparent;border:0;color:var(--teal);font-size:13px;padding:5px 8px}
+.ibody{padding:14px 22px 4px}
+.ibody h2{font-size:25px;color:var(--text)}
+.ibody p{font-size:16px;line-height:1.55;color:#E6ECFA;margin:8px 0}
+.ibody .note{font-size:14px;color:var(--sub)}
+.ifoot{display:flex;align-items:center;gap:10px;padding:12px 18px 16px;margin-top:auto}
+.dots{display:flex;gap:7px}
+.dots i{width:9px;height:9px;border-radius:50%;background:var(--rule2);cursor:pointer;transition:all .2s}
+.dots i.on{background:var(--teal);width:24px;border-radius:5px}
+.ifoot .sp{flex:1}
+.istrip{background:var(--gold-l);color:var(--text);font-size:14px;font-weight:600;padding:8px 18px;border-bottom:1px solid var(--rule)}
+/* stage cards (html inside the stage) */
+.scards{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:18px}
+.scard{background:rgba(230,236,250,.07);border:1px solid rgba(230,236,250,.16);border-radius:12px;padding:14px 16px;color:var(--mast-t)}
+.scard h4{margin:0 0 8px;font:700 15px "Avenir Next",sans-serif;letter-spacing:.03em}
+.scard .st{font-size:14.5px;margin:6px 0;color:var(--mast-s)}
+.scard .st b{color:var(--mast-t)}
+.scard .res{font:500 26px Optima,Candara,sans-serif;margin-top:6px}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 18px 18px}
+.three .scard{padding:11px 12px}.three .scard h4{font-size:14px}.three .scard .st{font-size:13px}
+@media(max-width:600px){.scards,.three{grid-template-columns:1fr}.ibody h2{font-size:21px}.ibody p{font-size:15px}}
+.checks{list-style:none;padding:16px 20px;margin:0;color:var(--mast-t);columns:2;column-gap:26px}
+@media(max-width:600px){.checks{columns:1}}
+.checks li{break-inside:avoid;margin:0 0 10px;padding-left:28px;position:relative;font-size:14.5px;color:var(--mast-s)}
+.checks li b{color:var(--mast-t)}
+.checks li:before{content:"✓";position:absolute;left:0;top:0;width:20px;height:20px;border-radius:50%;background:#5AA9FF;color:var(--mast);font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center}
+/* stage animations */
+.draw{stroke-dasharray:1;stroke-dashoffset:1;animation:draw var(--d,2s) ease forwards}
+.fade{opacity:0;animation:fade .6s ease forwards}
+.fadeup{opacity:0;animation:fadeup .6s ease forwards}
+.popin{opacity:0;transform-box:fill-box;transform-origin:center;animation:popsv .5s ease forwards}
+.pulse{transform-box:fill-box;transform-origin:center;animation:pulse 1.4s ease-in-out infinite}
+.grow{transform-box:fill-box;transform-origin:left center;transform:scaleX(0);animation:grow var(--d,5s) linear forwards}
+.growup{transform-box:fill-box;transform-origin:center bottom;transform:scaleY(0);animation:growup .5s ease forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes fade{to{opacity:1}}
+@keyframes fadeup{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes popsv{0%{opacity:0;transform:scale(.3)}70%{opacity:1;transform:scale(1.08)}100%{opacity:1;transform:scale(1)}}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.5)}}
+@keyframes grow{to{transform:scaleX(1)}}
+@keyframes growup{to{transform:scaleY(1)}}
+@media(prefers-reduced-motion:reduce){.draw,.fade,.fadeup,.popin,.grow,.growup{animation-duration:.01s!important;animation-delay:0s!important}.pulse{animation:none}}
+
+.ipanel{border:1px solid var(--line2)}
+.ibody p{color:var(--text)}
+.istage{background:#040A1C}
+.ihead button{background:var(--panel2)}
+.istrip{color:#040A1C;background:var(--gold)}
 </style>
 </head>
 <body>
-<div class="mast">
-  <div><h1>Traders@UST Futures Trading Game</h1>
-  <p>Index future, cash-settled at the final spot index. Every level is a game parameter, not market data.</p></div>
-  <div class="right">
+<header class="top">
+  <div class="brand">◆ TRADERS@UST</div>
+  <div class="sym"><b>UST500</b><span>Index Futures</span></div>
+  <div class="lastpx"><b id="lastpx">–</b><span id="lastsub">Futures price</span></div>
+  <div class="hstats" id="hstats"></div>
+  <div class="hright">
+    <span class="pill" id="pill"></span>
+    <button id="go" class="primary hide"></button>
     <a id="lmon" class="hide" href="/monitor" target="_blank">Monitor</a>
-    <a id="lover" class="hide" href="/overview" target="_blank">Projector View</a>
-    <span class="who" id="who"></span>
-    <button id="leave" class="hide">Leave Game</button>
+    <a id="lover" class="hide" href="/overview" target="_blank">Projector</a>
+    <button id="howbtn">How To Play</button>
+    <span class="who hide" id="who"></span>
+    <button class="hide" id="leave">Leave</button>
+  </div>
+</header>
+
+<div id="join" class="joinbox hide">
+  <div class="panel">
+    <h2>Join The Game</h2>
+    <p>Pick a name your class will recognise. A 3-minute animated intro follows.</p>
+    <div class="joinrow"><input id="nm" maxlength="20" autocomplete="off" placeholder="Your name"><button class="primary" id="joinbtn">Sign Up</button></div>
+    <div class="msg" id="jmsg" style="margin-top:10px"></div>
   </div>
 </div>
-<div class="strip hide" id="stripwrap"><div id="strip" style="display:contents"></div><button id="go" class="buy hide" style="margin-left:auto"></button></div>
+
+<div class="term hide" id="term">
+  <section class="panel p-chart">
+    <div class="phead"><span class="ptitle">UST500 · <span id="cint"></span></span><span class="ohlc" id="ohlc"></span>
+      <span class="legend"><span><i style="background:var(--gold)"></i>Spot index</span><span><i style="background:repeating-linear-gradient(90deg,#9DB0D8 0 4px,transparent 4px 7px)"></i>Fair value</span><span><i style="background:rgba(255,255,255,.06);height:9px"></i>Overnight</span></span></div>
+    <div class="chartbox" id="chartbox"><svg id="chart"></svg><div class="overlay hide" id="overlay"></div></div>
+    <div class="volbox" id="volbox"><svg id="vol"></svg></div>
+    <div class="sig">
+      <span class="lab">Futures − Fair</span><div class="gauge"><u></u><i id="needle"></i></div><span class="val" id="gapv"></span>
+      <span class="lab">Who's Taking</span><div class="flow"><i id="flowb" style="background:var(--up)"></i><i id="flows" style="background:var(--dn)"></i></div><span class="val" id="flowv"></span>
+      <div class="verdict" id="verdict"></div>
+    </div>
+  </section>
+
+  <section class="panel p-book">
+    <div class="phead"><span class="ptitle">Order Book</span><span class="r">Walls = big orders</span></div>
+    <table class="book"><thead><tr><th>Price</th><th>Size</th><th>Sum</th></tr></thead><tbody id="asks"></tbody></table>
+    <div class="midrow"><b id="midpx">–</b><span id="midsub"></span></div>
+    <table class="book"><tbody id="bids"></tbody></table>
+  </section>
+
+  <section class="panel p-trades">
+    <div class="phead"><span class="ptitle">Trades</span><span class="r">Green = buyer took · Red = seller took</span></div>
+    <div class="trades"><table><thead><tr><th>Price</th><th>Size</th><th>Time</th></tr></thead><tbody id="tape"></tbody></table></div>
+  </section>
+
+  <section class="panel p-order">
+    <div class="cluebar" id="cluebar"></div>
+    <div class="otabs"><button data-t="market" class="on">Market</button><button data-t="limit">Limit</button></div>
+    <div class="obody">
+      <div class="orow" style="font-size:13px"><span>PNL <b id="opnl"></b></span><span>Position <b id="opos"></b></span></div>
+      <div class="orow"><span>Balance</span><b id="avbl"></b></div>
+      <div class="field" id="pxfield"><label>Price</label><span class="mk" id="mkpx">Market · best price now</span><input id="px" class="hide" inputmode="decimal"><button id="pxlast" class="hide">Mid</button><span class="unit hide" id="pxunit">PTS</span></div>
+      <div class="field"><label>Size</label><input id="qty" type="number" min="0" max="20" value="1"><span class="unit">CONTRACTS</span></div>
+      <div><input type="range" class="slider" id="slider" min="0" max="10" step="1" value="1"><div class="marks" id="marks"></div></div>
+      <div class="bs"><button class="buy" id="buyb">Buy / Long</button><button class="sell" id="sellb">Sell / Short</button></div>
+      <div class="bsinfo"><div>Est. price <b id="estb">–</b><br>Max <b id="maxb">–</b></div><div>Est. price <b id="ests">–</b><br>Max <b id="maxs">–</b></div></div>
+      <div class="msg" id="msg"></div>
+    </div>
+  </section>
+
+  <section class="panel p-coach coach" id="coach"></section>
+
+  <section class="panel p-bottom">
+    <div class="btabs" id="btabs">
+      <button data-b="pos" class="on">Positions (<span id="npos">0</span>)</button>
+      <button data-b="ord">Open Orders (<span id="nord">0</span>)</button>
+      <button data-b="sess">My Sessions</button>
+      <button data-b="news">News</button>
+      <button data-b="lead">Leaderboard</button>
+      <button data-b="rep" id="reptab" class="hide">Report Card</button>
+      <button data-b="rules">Rules</button>
+    </div>
+    <div class="bpane" id="b-pos"></div>
+    <div class="bpane hide" id="b-ord"></div>
+    <div class="bpane hide" id="b-sess"><div id="sesschart" style="padding:6px 10px 0"></div><table><thead><tr><th class="l">Session</th><th>Clue</th><th>Your Bet At The News</th><th>News (Pts)</th><th>Profit (USD)</th></tr></thead><tbody id="mysess"></tbody></table></div>
+    <div class="bpane hide" id="b-news"><table><thead><tr><th class="l">When</th><th>News (Pts)</th><th>Futures Hinted (Pts)</th><th>Buyers / Sellers Took</th><th class="l">Hint</th></tr></thead><tbody id="news"></tbody></table></div>
+    <div class="bpane hide" id="b-lead"><table><thead><tr><th>Rank</th><th class="l">Name</th><th>Position</th><th>Clues</th><th>PNL (USD)</th></tr></thead><tbody id="lead"></tbody></table></div>
+    <div class="bpane hide" id="b-rep" style="padding:4px 12px 12px"><div id="report"></div></div>
+    <div class="bpane hide" id="b-rules" style="padding:4px 14px"><ul class="rules" id="rules"></ul></div>
+  </section>
+
+  <section class="panel p-acct">
+    <div class="phead"><span class="ptitle">Account</span><span class="r">USD · no fees</span></div>
+    <div class="acct">
+      <div class="small mut">Total PNL</div>
+      <div class="pnlbig" id="pnl"></div>
+      <div class="kv" id="acct"></div>
+      <div class="meter"><i id="bar"></i><u></u></div>
+      <div class="scale" id="scale"></div>
+    </div>
+  </section>
+</div>
 
 <div id="pop" class="pop hide"><div>
-  <h3>Private Clue, Only On Your Screen</h3>
-  <b id="popval"></b>
+  <h3>Secret Clue · Only On Your Screen</h3>
+  <span class="val" id="popval"></span>
   <p id="poptext"></p>
-  <button class="buy" id="popok">Got It</button>
+  <button class="primary" id="popok">Got It</button>
 </div></div>
+<div id="rcpop" class="pop hide"><div class="wide">
+  <h3>Game Over · Your Report Card</h3>
+  <div id="report2"></div>
+  <div style="text-align:right;margin-top:10px"><button class="primary" id="rcok">Close</button></div>
+</div></div>
+<div id="toast" class="toast hide"><div><b id="toastt"></b><span id="toastb"></span></div><button id="toastx" aria-label="Close">×</button></div>
 
-<main>
-  <div id="join" class="joinbox hide">
-    <h2 class="sec">Sign Up</h2>
-    <div class="card">
-      <div class="row" style="grid-template-columns:1fr auto;margin-top:0">
-        <div><label for="nm">Your Name (Must Be Unique)</label><input id="nm" maxlength="20" autocomplete="off"></div>
-        <button class="buy" id="joinbtn">Sign Up</button>
-      </div>
-      <div class="msg" id="jmsg"></div>
-    </div>
+<!-- ---------- intro walkthrough ---------- -->
+<div id="intro" class="intro hide" role="dialog" aria-modal="true" aria-labelledby="ititle">
+  <div class="ipanel">
+    <div class="ihead"><span class="step" id="istep"></span><button id="iskip">Skip Intro</button></div>
+    <div class="istrip hide" id="istrip"></div>
+    <div class="istage" id="istage"></div>
+    <div class="ibody"><h2 id="ititle"></h2><div id="itext"></div></div>
+    <div class="ifoot"><div class="dots" id="idots"></div><button class="replay" id="ireplay">↻ Replay</button><span class="sp"></span><button id="iback">Back</button><button class="primary" id="inext">Next</button></div>
   </div>
+</div>
 
-  <div id="play" class="hide">
-  <div id="banner" class="banner hide"></div>
-  <div class="grid">
-    <div>
-      <h2 class="sec">1 The Market</h2>
-      <div class="card">
-        <div class="kv" id="mkt"></div>
-        <svg id="chart" viewBox="0 0 600 230" style="width:100%;margin-top:12px"></svg>
-        <div class="mut">Spot index and last futures trade, in index points, over the game so far.</div>
-      </div>
-      <div class="card">
-        <div class="sec" style="font-size:15px">Fair Value Check (Index Points)</div>
-        <div class="kv" id="arb"></div>
-        <div class="msg" id="arbmsg"></div>
-      </div>
-    </div>
 
-    <div>
-      <h2 class="sec">2 Trade The Future</h2>
-      <div class="card">
-        <div class="row" style="margin-top:0">
-          <div><label for="px">Limit Price (Pts)</label><input id="px" type="text" inputmode="decimal"></div>
-          <div><label for="qty">Quantity (Contracts)</label><input id="qty" type="number" min="1" max="20" value="1"></div>
-          <button class="buy" id="buy">Buy</button><button class="sell" id="sell">Sell</button>
-        </div>
-        <div class="row" style="grid-template-columns:1fr 1fr">
-          <button id="lift">Buy At Best Offer</button><button id="hit">Sell At Best Bid</button>
-        </div>
-        <div class="msg" id="msg">Click a price in the book to copy it into the ticket.</div>
-        <table style="margin-top:6px"><thead><tr><th>Price (Pts)</th><th>Size (Contracts)</th><th class="l">Who</th></tr></thead><tbody id="book"></tbody></table>
-        <div class="mut" style="margin-top:8px">Best five prices each side. Offers above the spread, bids below.</div>
-      </div>
-      <div class="card">
-        <div class="sec" style="font-size:15px">Your Resting Orders</div>
-        <table><thead><tr><th>Side</th><th>Price (Pts)</th><th>Size (Contracts)</th><th></th></tr></thead><tbody id="orders"></tbody></table>
-      </div>
-    </div>
-
-    <div>
-      <h2 class="sec">3 Your Account</h2>
-      <div class="card">
-        <div class="clue" id="clue"></div>
-        <div class="mut">Account Equity, Capital Plus Profit Or Loss (USD)</div>
-        <div class="big" id="eq"></div>
-        <div class="kv" id="eqparts" style="margin:8px 0 14px"></div>
-        <div class="mut" id="poshead"></div>
-        <div class="meter"><i id="bar"></i><u></u></div>
-        <div class="scale" id="scale"></div>
-        <div class="sec" style="font-size:15px;margin-top:16px">Buying Power</div>
-        <div class="kv" id="room"></div>
-        <div class="msg" id="mcall"></div>
-      </div>
-      <h2 class="sec">4 Top Five, Live</h2>
-      <div class="card">
-        <table><thead><tr><th>Rank</th><th class="l">Name</th><th>Profit Or Loss (USD)</th></tr></thead><tbody id="top5"></tbody></table>
-      </div>
-    </div>
-  </div>
-
-  <div id="finalwrap" class="hide">
-    <h2 class="sec">Final Standings</h2>
-    <div class="card"><table><thead><tr><th>Rank</th><th class="l">Name</th><th>Final Position (Contracts)</th><th>Clues Received</th><th>Profit Or Loss (USD)</th></tr></thead><tbody id="final"></tbody></table></div>
-  </div>
-
-  <div class="grid">
-    <div><h2 class="sec">5 Daily Settlement (Mark To Market)</h2>
-      <div class="card scroll"><table><thead><tr><th>Day</th><th>Settlement Price (Pts)</th><th>Change (USD)</th><th>Running Total (USD)</th></tr></thead><tbody id="mtm"></tbody></table></div></div>
-    <div><h2 class="sec">6 Trade Tape</h2>
-      <div class="card scroll"><table><thead><tr><th>Session</th><th>Price (Pts)</th><th>Size (Contracts)</th><th class="l">Note</th></tr></thead><tbody id="tape"></tbody></table></div></div>
-    <div><h2 class="sec">7 News Released</h2>
-      <div class="card scroll"><table><thead><tr><th>When</th><th>Shock (Pts)</th><th>Spot After (Pts)</th></tr></thead><tbody id="news"></tbody></table></div></div>
-  </div>
-  <div class="card"><details><summary>How The Game Works</summary><ul id="rules"></ul></details></div>
-  </div>
-</main>
-<footer>Source: Traders@UST game server. Every level is a game parameter, not market data.</footer>
 
 <script>
 const $=id=>document.getElementById(id);
 const esc=t=>String(t).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const f2=n=>n==null?"None Yet":n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
-const usd=n=>(Math.round(n)<0?"−":"")+Math.abs(Math.round(n)).toLocaleString("en-US");
+const f2=n=>n==null?"–":n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const f1=n=>{const r=Math.abs(n)<.05?0:n;return (r>0?"+":r<0?"−":"")+Math.abs(r).toFixed(1)};
+const usd=n=>(Math.round(n)<0?"−":Math.round(n)>0?"+":"")+Math.abs(Math.round(n)).toLocaleString("en-US");
+const usdp=n=>Math.round(n).toLocaleString("en-US");
 const sg=n=>(n>0?"+":n<0?"−":"")+Math.abs(n);
-const cls=n=>Math.round(n)>0?"up":Math.round(n)<0?"dn":"";
+const cls=n=>Math.round(n*100)>0?"up":Math.round(n*100)<0?"dn":"";
 const num=v=>parseFloat(String(v).trim().replace(",","."));
-const say=(id,r)=>{$(id).textContent=r.msg;$(id).style.color=r.ok?"var(--sub)":"var(--dn)"};
-let S=null,jmsgErr=false;
+const mmss=s=>{s=Math.max(Math.ceil(s),0);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
+const sessName=r=>`Day ${Math.ceil(r/2)} ${r%2?"☀":"☾"}`;
+const betTxt=p=>p>0?`Long ${p}`:p<0?`Short ${-p}`:"None";
+const hhmmss=t=>new Date(t*1000).toLocaleTimeString("en-GB",{hour12:false});
+let S=null,jmsgErr=false,qty=1,otype="market",btab="pos",lastNews=null,toastTimer=null,hover=null,lastTrade=null,prevTrade=null,rcShown=null;
+const DEF={limit:10,mult:1,contractValue:5000,spreadPts:2.5,houseSize:5,lean:.5,capital:100000,clueHolders:3,roundSeconds:120,days:5,shockMin:12,shockMax:40,noiseSd:4,start:5000};
+let P=DEF;
 let token=localStorage.getItem("token");
 if(!token){token=Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem("token",token)}
 const post=(path,body)=>fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token,...body})}).then(r=>r.json());
+const say=r=>{$("msg").textContent=r.msg;$("msg").classList.toggle("bad",!r.ok)};
 
-$("joinbtn").onclick=()=>post("/api/join",{name:$("nm").value}).then(r=>{jmsgErr=!r.ok;say("jmsg",r);poll()});
+/* ---------- actions ---------- */
+$("joinbtn").onclick=()=>post("/api/join",{name:$("nm").value}).then(r=>{jmsgErr=!r.ok;$("jmsg").textContent=r.msg;$("jmsg").classList.toggle("bad",!r.ok);poll()});
 $("nm").onkeydown=e=>{if(e.key==="Enter")$("joinbtn").click()};
-$("leave").onclick=()=>{if(confirm("Leave The Game? Your Orders Are Cancelled And You Cannot Take This Account Back."))post("/api/leave",{}).then(poll)};
+$("leave").onclick=()=>{if(confirm("Leave the game? Your open orders are cancelled and you cannot take this account back."))post("/api/leave",{}).then(poll)};
 $("go").onclick=()=>post("/api/admin",{action:S.status==="settled"?"reset":"start"}).then(poll);
 $("popok").onclick=()=>$("pop").classList.add("hide");
+$("rcok").onclick=()=>$("rcpop").classList.add("hide");
+$("toastx").onclick=()=>$("toast").classList.add("hide");
+$("howbtn").onclick=()=>openIntro(0);
+document.querySelectorAll(".otabs button").forEach(b=>b.onclick=()=>setType(b.dataset.t));
+function setType(t){otype=t;document.querySelectorAll(".otabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));
+  $("mkpx").classList.toggle("hide",t==="limit");$("px").classList.toggle("hide",t!=="limit");$("pxlast").classList.toggle("hide",t!=="limit");$("pxunit").classList.toggle("hide",t!=="limit");
+  if(t==="limit"&&!$("px").value&&S&&S.signal)$("px").value=(Math.round(S.signal.price*4)/4).toFixed(2);if(S&&S.joined)orderInfo()}
+$("pxlast").onclick=()=>{$("px").value=(Math.round(S.signal.price*4)/4).toFixed(2);orderInfo()};
+$("px").oninput=()=>orderInfo();
+document.querySelectorAll("#btabs button").forEach(b=>b.onclick=()=>setTab(b.dataset.b));
+function setTab(t){btab=t;document.querySelectorAll("#btabs button").forEach(b=>b.classList.toggle("on",b.dataset.b===t));
+  document.querySelectorAll(".bpane").forEach(p=>p.classList.toggle("hide",p.id!=="b-"+t))}
+function setQty(q){qty=Math.max(0,Math.min(20,Math.round(q)||0));$("qty").value=qty;$("slider").value=Math.min(qty,+$("slider").max);if(S&&S.joined)orderInfo()}
+$("qty").oninput=()=>setQty(+$("qty").value);
+$("slider").oninput=()=>setQty(+$("slider").value);
+$("marks").onclick=e=>{if(e.target.dataset.f)setQty(Math.round(+e.target.dataset.f*P.limit))};
+$("coach").onclick=e=>{if(e.target.dataset.use){setType("market");setQty(+e.target.dataset.use)}};
+// the worst price needed to fill q contracts from the book, skipping your own orders
+function sweep(side,q){
+  const lv=side==="B"?S.book.asks:S.book.bids;let need=q,first=null,last=null,cost=0,got=0;
+  for(const l of lv){const a=l.q-l.you;if(a<=0)continue;const take=Math.min(a,need);if(first==null)first=l.p;last=l.p;cost+=take*l.p;got+=take;need-=take;if(need<=0)break}
+  return {first,last,avg:got?cost/got:null,short:Math.max(need,0)};
+}
 async function act(body){
   const r=await post("/api/order",body);
-  if(!r.ok&&S.status!=="open"&&S.status!=="settled")r.msg+=" Wait For The Game Master To Start.";
-  say("msg",r);poll();
+  if(!r.ok&&S.status!=="open"&&S.status!=="settled")r.msg+=" Wait for the game master to start.";
+  say(r);poll();
 }
-const send=(side,price)=>{const p=price??num($("px").value),q=parseInt($("qty").value);
-  if(!(p>0)||!(q>0))return say("msg",{ok:false,msg:"Enter A Price And A Quantity."});
-  act({side,price:p,qty:q})};
-$("buy").onclick=()=>send("B");$("sell").onclick=()=>send("S");
-$("lift").onclick=()=>{const a=S.book.asks[0];a?send("B",a.p):say("msg",{ok:false,msg:"No Offer In The Book."})};
-$("hit").onclick=()=>{const b=S.book.bids[0];b?send("S",b.p):say("msg",{ok:false,msg:"No Bid In The Book."})};
-$("book").onclick=e=>{const tr=e.target.closest("tr.px");if(tr)$("px").value=tr.dataset.p};
-$("orders").onclick=e=>{if(e.target.dataset.id)post("/api/cancel",{id:+e.target.dataset.id}).then(poll)};
+function send(side){
+  if(!(qty>0))return say({ok:false,msg:"Set a size first."});
+  if(otype==="market"){const w=sweep(side,qty);
+    if(w.first==null)return say({ok:false,msg:side==="B"?"No one is selling right now.":"No one is buying right now."});
+    act({side,price:w.last,qty,now:true})}
+  else{const p=num($("px").value);if(!(p>0))return say({ok:false,msg:"Enter a price first."});act({side,price:p,qty})}
+}
+$("buyb").onclick=()=>send("B");$("sellb").onclick=()=>send("S");
+const toLimit=p=>{setType("limit");$("px").value=p;orderInfo()};
+$("asks").onclick=e=>{const tr=e.target.closest("tr");if(tr)toLimit(tr.dataset.p)};
+$("bids").onclick=e=>{const tr=e.target.closest("tr");if(tr)toLimit(tr.dataset.p)};
+$("b-ord").onclick=e=>{if(e.target.dataset.id)post("/api/cancel",{id:+e.target.dataset.id}).then(r=>{say(r);poll()})};
+$("b-pos").onclick=e=>{if(e.target.dataset.close==null)return;const m=S.me,side=m.pos>0?"S":"B",q=Math.min(Math.abs(m.pos),20),w=sweep(side,q);
+  if(w.first==null)return say({ok:false,msg:"No one to trade with right now."});act({side,price:w.last,qty:q,now:true})};
 
-function chart(h){
-  const W=600,H=230,L=58,R=10,T=22,B=26,vals=h.flatMap(p=>[p[0],p[1]]).filter(v=>v!=null);
+/* ---------- candlestick chart with spot, fair value, overnight bands and news ---------- */
+let geo=null;
+function chart(){
+  const box=$("chartbox"),W=box.clientWidth,H=box.clientHeight;if(!W||!H||!S)return;
+  const cs=S.candles,n=cs.length,per=S.candlesPerSession,slots=Math.max(per*4,n+4),L=8,R=66,T=24,B=22;
+  const vals=cs.flatMap(c=>[c[1],c[2],c[6],c[7]]);
   let lo=Math.min(...vals),hi=Math.max(...vals);if(hi-lo<20){const m=(hi+lo)/2;lo=m-10;hi=m+10}
   const pad=(hi-lo)*.08;lo-=pad;hi+=pad;
-  const x=i=>L+(W-L-R)*(h.length<2?0:i/(h.length-1)),y=v=>T+(H-T-B)*(1-(v-lo)/(hi-lo));
-  const line=k=>h.map((p,i)=>p[k]==null?null:x(i).toFixed(1)+","+y(p[k]).toFixed(1)).filter(Boolean).join(" ");
-  let g="";for(let i=0;i<4;i++){const v=lo+(hi-lo)*i/3;
-    g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#E5DDCD"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end" font-size="12" fill="#586660">${Math.round(v).toLocaleString("en-US")}</text>`}
-  $("chart").innerHTML=g+`<polyline points="${line(0)}" fill="none" stroke="#A07A2C" stroke-width="2"/>
-  <polyline points="${line(1)}" fill="none" stroke="#00857C" stroke-width="2"/>
-  <text x="${L}" y="12" font-size="12" fill="#A07A2C">Spot Index (Pts)</text>
-  <text x="${L+120}" y="12" font-size="12" fill="#00857C">Last Futures Trade (Pts)</text>
-  <text x="${W-R}" y="${H-6}" text-anchor="end" font-size="12" fill="#586660">Time Since Start</text>`;
+  const cw=(W-L-R)/slots,x=i=>L+cw*(i+.5),y=v=>T+(H-T-B)*(1-(v-lo)/(hi-lo));
+  geo={L,cw,n};
+  let g="";
+  // overnight bands and day labels
+  let st=0;for(let i=1;i<=n;i++){if(i===n||cs[i][8]!==cs[st][8]){const r=cs[st][8],x0=x(st)-cw/2,x1=x(i-1)+cw/2;
+    if(r%2)g+=`<rect x="${x0}" y="${T}" width="${x1-x0}" height="${H-T-B}" fill="rgba(255,255,255,.035)"/>`;
+    g+=`<text x="${x0+3}" y="${H-7}" font-size="10.5" fill="#5A6B93">D${Math.floor(r/2)+1} ${r%2?"☾":"☀"}</text>`;st=i}}
+  // price grid on the right axis
+  const step=[1,2,2.5,5,10,20,25,50,100].find(s=>(hi-lo)/s<=7)||200;
+  for(let v=Math.ceil(lo/step)*step;v<=hi;v+=step)g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#13224A"/><text x="${W-R+6}" y="${y(v)+4}" font-size="11" fill="#8EA0C8">${v.toLocaleString("en-US",{minimumFractionDigits:step<1?2:0})}</text>`;
+  // news markers
+  S.news.forEach(nw=>{const i=Math.min(Math.max(nw.i??0,0),n-1),c=nw.shock>=0?"#2EBD85":"#F0616D";
+    g+=`<line x1="${x(i)}" x2="${x(i)}" y1="${T}" y2="${H-B}" stroke="${c}" stroke-dasharray="3 4" opacity=".75"/>
+      <rect x="${x(i)-17}" y="${T-18}" width="34" height="15" rx="3" fill="${c}"/><text x="${x(i)}" y="${T-7}" font-size="10" font-weight="700" fill="#040A1C" text-anchor="middle">${f1(nw.shock)}</text>`});
+  // fair value and spot lines
+  const line=k=>cs.map((c,i)=>x(i).toFixed(1)+","+y(c[k]).toFixed(1)).join(" ");
+  g+=`<polyline points="${line(7)}" fill="none" stroke="#9DB0D8" stroke-width="1.2" stroke-dasharray="4 3" opacity=".8"/>`;
+  g+=`<polyline points="${line(6)}" fill="none" stroke="#E0B85A" stroke-width="1.8" stroke-linejoin="round"/>`;
+  // candles
+  const bw=Math.max(Math.min(cw*.68,14),1.5);
+  cs.forEach((c,i)=>{const upc=c[3]>=c[0],col=upc?"#2EBD85":"#F0616D",yo=y(c[0]),yc=y(c[3]);
+    g+=`<line x1="${x(i)}" x2="${x(i)}" y1="${y(c[1])}" y2="${y(c[2])}" stroke="${col}" stroke-width="1"/>
+      <rect x="${x(i)-bw/2}" y="${Math.min(yo,yc)}" width="${bw}" height="${Math.max(Math.abs(yc-yo),1.2)}" fill="${col}"/>`});
+  if(hover!=null&&hover<n)g+=`<line x1="${x(hover)}" x2="${x(hover)}" y1="${T}" y2="${H-B}" stroke="#8EA0C8" stroke-dasharray="2 3"/>`;
+  // price tags on the axis: futures (mark) and spot
+  const last=cs[n-1],mk=S.signal.price,ys=y(S.spot);let yf=y(mk);
+  const tag=(yy,v,bg,fg)=>`<rect x="${W-R+1}" y="${yy-9}" width="${R-3}" height="18" rx="3" fill="${bg}"/><text x="${W-R+6}" y="${yy+4}" font-size="11" font-weight="700" fill="${fg}">${f2(v)}</text>`;
+  g+=`<line x1="${L}" x2="${W-R}" y1="${yf}" y2="${yf}" stroke="${last[3]>=last[0]?"#2EBD85":"#F0616D"}" stroke-dasharray="2 3" opacity=".7"/>`;
+  let ysp=ys;if(Math.abs(ysp-yf)<19)ysp=yf+(ys>=yf?19:-19);
+  g+=tag(ysp,S.spot,"#E0B85A","#040A1C")+tag(yf,mk,last[3]>=last[0]?"#2EBD85":"#F0616D","#fff");
+  $("chart").setAttribute("viewBox",`0 0 ${W} ${H}`);$("chart").innerHTML=g;
+  // volume bars
+  const vb=$("volbox"),VW=vb.clientWidth,VH=vb.clientHeight,mx=Math.max(5,...cs.map(c=>c[4]));
+  let v=`<text x="${VW-R+6}" y="14" font-size="10.5" fill="#8EA0C8">${mx}</text><text x="${VW-R+6}" y="${VH-4}" font-size="10.5" fill="#8EA0C8">0</text><text x="${L+2}" y="13" font-size="10.5" fill="#8EA0C8">Volume (contracts)</text>`;
+  cs.forEach((c,i)=>{if(!c[4])return;const h=c[4]/mx*(VH-18);
+    v+=`<rect x="${x(i)-bw/2}" y="${VH-2-h}" width="${bw}" height="${h}" fill="${c[3]>=c[0]?"#2EBD85":"#F0616D"}" opacity=".65"/>`});
+  $("vol").setAttribute("viewBox",`0 0 ${VW} ${VH}`);$("vol").innerHTML=v;
+  ohlc();
+}
+function ohlc(){if(!S)return;const cs=S.candles,i=hover!=null&&hover<cs.length?hover:cs.length-1,c=cs[i],col=c[3]>=c[0]?"up":"dn";
+  $("ohlc").innerHTML=`<span>O <b class="${col}">${f2(c[0])}</b></span><span>H <b class="${col}">${f2(c[1])}</b></span><span>L <b class="${col}">${f2(c[2])}</b></span><span>C <b class="${col}">${f2(c[3])}</b></span><span>Vol <b>${c[4]}</b></span><span>Spot <b class="gold">${f2(c[6])}</b></span>`}
+$("chartbox").addEventListener("mousemove",e=>{if(!geo)return;const r=$("chartbox").getBoundingClientRect(),i=Math.floor((e.clientX-r.left-geo.L)/geo.cw);
+  const h=i>=0&&i<geo.n?i:null;if(h!==hover){hover=h;chart()}});
+$("chartbox").addEventListener("mouseleave",()=>{hover=null;chart()});
+new ResizeObserver(()=>chart()).observe($("chartbox"));
+
+/* ---------- bet sizer: how big should my bet be right now? ---------- */
+// The edge of each extra contract, walking the real book: target price minus the price you'd pay.
+function ladder(side,room,target){const lv=side==="B"?S.book.asks:S.book.bids,e=[];
+  for(const l of lv){for(let j=0;j<l.q-l.you&&e.length<room;j++)e.push(side==="B"?target-l.p:l.p-target);if(e.length>=room)break}
+  return e}
+function edgeChart(e,n){if(!e.length)return"";const W=320,H=78,mx=Math.max(4,...e.map(Math.abs)),bw=Math.min(26,(W-30)/e.length),z=H*.62;
+  let g=`<line x1="22" x2="${W}" y1="${z}" y2="${z}" stroke="#22386B"/><text x="18" y="${z+4}" font-size="10" fill="#8EA0C8" text-anchor="end">0</text>`;
+  e.forEach((v,i)=>{const h=Math.abs(v)/mx*(v>0?z-6:H-z-12),x=26+i*bw;
+    g+=`<rect x="${x}" y="${v>0?z-h:z}" width="${bw-3}" height="${Math.max(h,1)}" rx="2" fill="${v>0?(i<n?"#2EBD85":"#1E6B52"):"#F0616D"}"/>`;
+    if(e.length<=12||i%2===0)g+=`<text x="${x+(bw-3)/2}" y="${H-1}" font-size="9.5" fill="#8EA0C8" text-anchor="middle">${i+1}</text>`});
+  return `<svg class="minichart" viewBox="0 0 ${W} ${H}"><text x="${W}" y="10" font-size="10" fill="#8EA0C8" text-anchor="end">edge (pts) of each extra contract →</text>${g}</svg>`}
+function coach(s){
+  const m=s.me,c=m.clue,live=c&&!c.public,sig=s.signal,net=sig.buy-sig.sell;
+  const box=(l,v,cl="",sub="")=>`<div class="st3"><span>${l}</span><b class="${cl}">${v}</b>${sub?`<i>${sub}</i>`:""}</div>`;
+  const chips=(lo,hi)=>{let o="";for(const q of [1,2,3,5,10])if(q>=lo&&q<=hi)o+=`<button data-use="${q}">Use ${q}</button>`;return o};
+  let k="",head="",st="",viz="",use="";
+  if(s.status==="waiting"){head="Waiting for the start";st=box("Sessions",s.rounds)+box("Minutes Each",Math.round(P.roundSeconds/6)/10)+box("Clues / Session",P.clueHolders)}
+  else if(s.status==="settled"){head="Game over · see your report card";st=box("Your Profit","USD "+usd(m.pnl),cls(m.pnl))+box("Clues",m.cluesSoFar)+box("Final",f2(s.settle))}
+  else if(s.status==="paused"){head="Paused";st=box("Position",betTxt(m.pos),cls(m.pos))+box("Profit",usd(m.pnl),cls(m.pnl))+box("Fair",f2(s.fair))}
+  else if(live){
+    const target=s.fair+c.value,side=c.value>0?"B":"S",room=side==="B"?m.roomBuy:m.roomSell;
+    const e=ladder(side,room,target),n=e.filter(v=>v>0).length,small=Math.abs(c.value)<P.spreadPts*1.5;
+    const size=small?Math.min(n,2):n,exp=e.slice(0,size).reduce((a,v)=>a+v,0)*P.mult,verb=side==="B"?"Buy":"Sell";
+    k=size?"edge":"warn";head=!e.length?"No room left: you're at your limit":small?"Small clue: bet tiny or skip":n?`Edge! ${verb} up to ${size}`:"Edge used up: don't chase";
+    st=box("Edge Now",e.length?f1(e[0]):"–",e.length&&e[0]>0?"up":"dn","pts per contract")+box("Suggested",size?`${verb} ${size}`:"0",size?(side==="B"?"up":"dn"):"","contracts")+box("Expected",size?"USD "+usd(exp):"–",size?"up":"","if the clue is right");
+    viz=edgeChart(e,size);use=size?chips(1,size):""}
+  else if(!s.newsOut){
+    const strong=Math.abs(sig.gap)>=5||Math.abs(net)>=10,some=Math.abs(sig.gap)>=2||Math.abs(net)>=4,up=(sig.gap||net)>0;
+    k=some?"warn":"";head=!some?"No clue: you'd be guessing":strong?`Strong signal: ${up?"buyers":"sellers"} look informed`:`Weak signal: some ${up?"buying":"selling"}`;
+    st=box("Your Edge","?","","no clue")+box("Suggested",some?(strong?"1–3":"1–2"):"0–1","",some?`follow, small`:"or wait")+box("Cost","−"+P.spreadPts,"dn","pts per trade");
+    use=chips(1,strong?3:some?2:1)}
+  else{const ln=s.news[s.news.length-1];head="News out: no secrets left";
+    st=box("News",f1(ln.shock),cls(ln.shock),"pts")+box("Fair Now",f2(s.fair))+box("Your Bet",betTxt(m.pos),cls(m.pos))}
+  $("coach").className="panel p-coach coach "+k;
+  $("coach").innerHTML=`<div class="clab">Bet Sizer</div><div class="head">${head}</div><div class="stats3">${st}</div>${viz}${use?`<div class="sizes">${use}</div>`:""}`;
 }
 
+/* ---------- charts of your results ---------- */
+// One bar per session: your profit. Gold band = you had a clue. Label under: your bet when the news hit.
+function sessChart(rows,total,W=600){
+  W=Math.max(320,Math.round(W));const H=170,L=46,T=12,B=34,n=Math.max(total||rows.length,1),bw=(W-L-6)/n;
+  const mx=Math.max(10,...rows.map(r=>Math.abs(r.pnl))),z=T+(H-T-B)/2,sc=(H-T-B)/2/mx;
+  let g=`<line x1="${L}" x2="${W}" y1="${z}" y2="${z}" stroke="#22386B"/>
+    <text x="${L-6}" y="${T+8}" font-size="10.5" fill="#8EA0C8" text-anchor="end">+${usdp(mx)}</text><text x="${L-6}" y="${z+4}" font-size="10.5" fill="#8EA0C8" text-anchor="end">0</text><text x="${L-6}" y="${H-B}" font-size="10.5" fill="#8EA0C8" text-anchor="end">−${usdp(mx)}</text>`;
+  for(let i=0;i<n;i++){const r=rows[i],x=L+i*bw+3;
+    if(r&&r.clue)g+=`<rect x="${x-2}" y="${T-6}" width="${bw-2}" height="${H-T-B+12}" rx="5" fill="rgba(242,184,75,.07)" stroke="rgba(242,184,75,.65)"/>`;
+    if(r){const h=Math.abs(r.pnl)*sc;g+=`<rect x="${x+bw*.15}" y="${r.pnl>=0?z-h:z}" width="${bw*.6}" height="${Math.max(h,1.5)}" rx="3" fill="${r.pnl>=0?"#2EBD85":"#F0616D"}"/>`;
+      g+=`<text x="${x+bw*.45}" y="${H-19}" font-size="10.5" font-weight="700" fill="${r.pos>0?"#2EBD85":r.pos<0?"#F0616D":"#8EA0C8"}" text-anchor="middle">${r.pos>0?"L"+r.pos:r.pos<0?"S"+(-r.pos):"0"}</text>`}
+    g+=`<text x="${x+bw*.45}" y="${H-5}" font-size="10" fill="#8EA0C8" text-anchor="middle">D${Math.floor(i/2)+1}${i%2?"☾":"☀"}</text>`}
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block">${g}</svg>`}
+// Horizontal bars with the number on each: used for the class lessons. Labels get their own column.
+function hbars(items,W=600){W=Math.max(320,Math.round(W));const fs=W<480?11:13,lab=Math.round(W*.42),half=(W-lab-16)/2-44,mid=lab+16+44+half,rh=fs*2.3,H=items.length*rh+4;
+  const mx=Math.max(1,...items.map(i=>Math.abs(i.v||0)));
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block">`+items.map((it,k)=>{const y=k*rh+4,w=it.v==null?0:Math.abs(it.v)/mx*half,neg=it.v<0;
+    return `<text x="${lab}" y="${y+rh/2+fs*.35}" font-size="${fs}" fill="#E6ECFA" text-anchor="end">${it.l}</text>
+      <rect x="${neg?mid-w:mid}" y="${y+rh*.18}" width="${Math.max(w,1)}" height="${rh*.64}" rx="3" fill="${it.c||(it.v>=0?"#2EBD85":"#F0616D")}"/>
+      <text x="${neg?mid-w-6:mid+w+6}" y="${y+rh/2+fs*.35}" font-size="${fs}" font-weight="700" fill="#E6ECFA" text-anchor="${neg?"end":"start"}">${it.v==null?"–":it.f?it.f(it.v):usd(it.v)}</text>`}).join("")
+    +`<line x1="${mid}" x2="${mid}" y1="0" y2="${H}" stroke="#22386B"/></svg>`}
+
+/* ---------- report card ---------- */
+const RW=()=>Math.min(820,window.innerWidth-(window.innerWidth<700?64:120));
+function reportCard(s){
+  const rows=s.me.report,clue=rows.filter(r=>r.clue),plain=rows.filter(r=>!r.clue);
+  const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0,sum=a=>a.reduce((x,y)=>x+y,0);
+  const cs=avg(clue.map(r=>Math.abs(r.pos))),ps=avg(plain.map(r=>Math.abs(r.pos)));
+  const cp=sum(clue.map(r=>r.pnl)),pp=sum(plain.map(r=>r.pnl));
+  const right=rows.filter(r=>r.pos&&(r.pos>0)===(r.shock>0)).length,bets=rows.filter(r=>r.pos).length,missed=clue.filter(r=>!r.pos).length;
+  const verdict=!clue.length?"No clues this game: small bets keep guessing cheap."
+    :cs>ps+1?`✓ Good sizing: bigger with a clue (${cs.toFixed(1)}) than without (${ps.toFixed(1)}).`
+    :`✗ Bet bigger WITH a clue (${cs.toFixed(1)}) than without (${ps.toFixed(1)}).`;
+  const L=s.lessons;
+  $("report").innerHTML=`<div class="reportgrid">
+    <div class="rtile clueT"><span>With A Clue · ${clue.length}</span><b class="${cls(cp)}">USD ${usd(cp)}</b><i>avg bet ${cs.toFixed(1)} contracts</i></div>
+    <div class="rtile"><span>Without A Clue · ${plain.length}</span><b class="${cls(pp)}">USD ${usd(pp)}</b><i>avg bet ${ps.toFixed(1)} contracts</i></div>
+    <div class="rtile"><span>Right Side Of The News</span><b>${right} / ${bets}</b><i>${missed?`${missed} clue${missed>1?"s":""} unused`:"bets placed"}</i></div></div>
+    <div class="small mut" style="font-weight:600">Profit by session · gold = you had a clue · L/S = your bet when the news hit</div>
+    ${sessChart(rows,rows.length,RW())}
+    <div class="lesson"><b>${verdict}</b></div>
+    ${L&&L.clueN&&L.plainN?`<div class="small mut" style="font-weight:600;margin-top:12px">Whole class · average profit per player per session (USD)</div>
+    ${hbars([{l:`With a clue (bet ${L.clueSize.toFixed(1)})`,v:L.cluePnl,c:"#E0B85A"},{l:`No clue (bet ${L.plainSize.toFixed(1)})`,v:L.plainPnl},
+      {l:`No clue, followed futures (${L.followN})`,v:L.followN?L.followPnl:null},{l:`No clue, bet against (${L.againstN})`,v:L.againstN?L.againstPnl:null},
+      {l:"Futures called the news",v:L.hinted?L.hintedRight/L.hinted*100:null,c:"#3D8BFF",f:()=>`${L.hintedRight} / ${L.hinted}`}],RW())}`:""}`;
+}
+
+function rules(){return[
+  `You trade one futures contract on a stock index against your classmates. Buying (going long) makes money if the price rises; selling (going short) makes money if it falls. Each contract makes or loses USD ${P.mult} for every point. <b>There are no trading fees.</b>`,
+  `You can hold up to ${P.limit} contracts long or short. Waiting orders count toward this.`,
+  `The game is ${P.days} trading days. Each day has a cash session (stock market open, spot index moves live) and an overnight session (stock market closed, spot frozen, futures still trade). Each session lasts ${Math.round(P.roundSeconds/60*10)/10} minutes.`,
+  `News moves the price ${P.shockMin} to ${P.shockMax} points. Between news items, random noise moves it only about ±${P.noiseSd} points a session, so a clue is a real edge.`,
+  `Halfway through every session one news item comes out. Cash-session news moves spot at once. Overnight news moves only the futures; spot jumps to catch up at the next open.`,
+  `Secret clues: at the start of each session ${P.clueHolders} players, picked at random, see that session's news early. Players with fewer clues are picked first.`,
+  `Fair value is what the future is worth on public news: spot plus any overnight news spot hasn't printed yet.`,
+  `The house trader always offers to buy about ${P.spreadPts} points below its price and sell about ${P.spreadPts} above, ${P.houseSize} contracts per price. When players keep buying from it, it raises its prices ${P.lean} points per contract (and lowers them when they sell). It goes back to fair value when the news comes out and at each new session. That's why informed trading shows up in the futures before the news.`,
+  `<b>Market</b> orders trade straight away at the best prices in the book. <b>Limit</b> orders wait in the book at your price until someone trades with them.`,
+  `When news comes out, every waiting limit order is cancelled, so no one gets caught at an old price.`,
+  `At the end every position is settled at the final spot index. The game is zero-sum: every profit is someone else's loss.`]}
+
+/* ---------- intro walkthrough ---------- */
+let introShown=false,islide=0;
+const K={spot:"#E3B65B",fut:"#5AA9FF",up:"#6BD49E",dn:"#F08A70",t:"#E6ECFA",s:"#A9BCE6",g:"#1A2C5C",night:"#020815"};
+const pts=a=>a.map(p=>p.join(",")).join(" ");
+const pl=(a,c,d=0,dur=2,w=3.5,extra="")=>`<polyline points="${pts(a)}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round" pathLength="1" class="draw" style="animation-delay:${d}s;--d:${dur}s" ${extra}/>`;
+const tx=(x,y,t,c=K.t,d=0,sz=14,anchor="start",wt=600)=>`<text x="${x}" y="${y}" fill="${c}" font-size="${sz}" font-weight="${wt}" text-anchor="${anchor}" class="fade" style="animation-delay:${d}s">${t}</text>`;
+const gridl=()=>[60,110,160].map(y=>`<line x1="20" x2="540" y1="${y}" y2="${y}" stroke="${K.g}"/>`).join("");
+const facts=a=>`<div class="facts">${a.map(([l,v])=>`<div><b>${v}</b><span>${l}</span></div>`).join("")}</div>`;
+const svg=(inner,h=220)=>`<svg viewBox="0 0 560 ${h}" role="img">${inner}</svg>`;
+const SLIDES=[
+ {t:"Welcome, Trader",
+  b:()=>`<p>Trade a stock-market <b>future</b> against your class. ▲ Price going up? <b>Buy</b>. ▼ Going down? <b>Sell</b>. Most profit wins.</p>`+facts([["Minutes",Math.round(P.days*2*P.roundSeconds/60)],["Sessions",P.days*2],["Max Contracts",P.limit],["Fees",0]]),
+  s:()=>svg(gridl()+pl([[20,150],[60,132],[100,146],[140,104],[180,118],[220,84],[260,98],[300,60],[340,92],[380,124],[420,102],[460,74],[500,54],[540,40]],K.fut,0,3)
+    +`<circle cx="100" cy="146" r="8" fill="${K.up}" class="popin" style="animation-delay:.9s"/>`+tx(100,176,"Buy low",K.up,1,14,"middle")
+    +`<circle cx="300" cy="60" r="8" fill="${K.dn}" class="popin" style="animation-delay:1.9s"/>`+tx(300,40,"Sell high",K.dn,2,14,"middle")
+    +tx(330,196,"Profit = sell price − buy price",K.t,2.6,15)
+    +`<circle cx="540" cy="40" r="6" fill="${K.fut}" class="pulse" style="animation-delay:3s"/>`)},
+ {t:"Spot vs Futures",
+  b:()=>`<p><b style="color:#E0B85A">Spot</b> = the stock market right now. <b style="color:#3D8BFF">Futures</b> = a bet on where spot finishes. At the end, futures = spot.</p>`+facts([["Start Price",P.start.toLocaleString("en-US")],["Settles At","Final Spot"]]),
+  s:()=>svg(gridl()+pl([[20,160],[80,148],[140,160],[200,128],[260,136],[320,108],[380,118],[440,100],[500,106],[520,104]],K.spot,0,2.4)
+    +pl([[20,142],[80,134],[140,146],[200,114],[260,124],[320,96],[380,108],[440,94],[500,103],[520,104]],K.fut,.3,2.4)
+    +tx(26,128,"Futures: what you trade",K.fut,.6,13)+tx(26,186,"Spot index: the stock market",K.spot,.9,13)
+    +`<g class="fade" style="animation-delay:2.6s"><line x1="520" y1="104" x2="520" y2="40" stroke="${K.t}" stroke-width="2"/><polygon points="520,40 548,48 520,56" fill="${K.t}"/></g>`
+    +tx(510,26,"End: futures = spot",K.t,2.8,14,"end"))},
+ {t:"Buy (Long) Or Sell (Short)",
+  b:()=>`<p>Buy = <b>long</b>, you win if ▲. Sell = <b>short</b>, you win if ▼. You can sell without owning any first.</p>`+facts([["USD Per Point",P.mult],["Max Long",P.limit],["Max Short",P.limit],["Fees",0]]),
+  s:()=>`<div class="scards">
+    <div class="scard"><h4 style="color:${K.up}">BUY = GO LONG</h4>
+      <div class="st fadeup" style="animation-delay:.3s">You buy <b>5 contracts at 5,000</b></div>
+      <div class="st fadeup" style="animation-delay:1.1s">The price rises to <b>5,020</b> ▲</div>
+      <div class="st fadeup" style="animation-delay:1.9s">+20 points × 5 contracts × USD ${P.mult}</div>
+      <div class="res fadeup" style="animation-delay:2.5s;color:${K.up}">+USD ${(100*P.mult).toLocaleString("en-US")}</div></div>
+    <div class="scard"><h4 style="color:${K.dn}">SELL = GO SHORT</h4>
+      <div class="st fadeup" style="animation-delay:.6s">You sell <b>5 contracts at 5,000</b></div>
+      <div class="st fadeup" style="animation-delay:1.4s">The price falls to <b>4,980</b> ▼</div>
+      <div class="st fadeup" style="animation-delay:2.2s">+20 points × 5 contracts × USD ${P.mult}</div>
+      <div class="res fadeup" style="animation-delay:2.8s;color:${K.up}">+USD ${(100*P.mult).toLocaleString("en-US")}</div></div>
+    </div><div class="fadeup" style="animation-delay:3.4s;color:${K.s};padding:0 18px 18px;font-size:14.5px">If the price moves the other way, you lose the same amount.</div>`},
+ {t:"Day And Night",
+  b:()=>`<p>☀ <b>Cash</b>: spot moves live. ☾ <b>Overnight</b>: spot frozen, futures still trade. Spot <b>jumps</b> to catch up at the open.</p>`+facts([["Days",P.days],["Sessions / Day",2],["Minutes Each",Math.round(P.roundSeconds/6)/10]]),
+  s:()=>svg(`<rect x="200" y="62" width="180" height="140" fill="${K.night}"/>`
+    +`<circle cx="110" cy="26" r="10" fill="${K.spot}"/><circle cx="460" cy="26" r="10" fill="${K.spot}"/><circle cx="290" cy="26" r="10" fill="${K.t}"/><circle cx="296" cy="22" r="9" fill="${K.mast||"#0A1530"}"/>`
+    +`<text x="110" y="52" fill="${K.s}" font-size="12.5" text-anchor="middle">Day 1 · Cash</text><text x="290" y="52" fill="${K.s}" font-size="12.5" text-anchor="middle">Night · Overnight</text><text x="460" y="52" fill="${K.s}" font-size="12.5" text-anchor="middle">Day 2 · Cash</text>`
+    +pl([[20,170],[110,170],[110,146],[200,146]],K.spot,0,1)
+    +`<line x1="200" y1="146" x2="380" y2="146" stroke="${K.spot}" stroke-width="3" stroke-dasharray="5 6" class="fade" style="animation-delay:1s"/>`
+    +pl([[20,164],[110,164],[110,140],[200,140],[290,140],[290,96],[380,96],[540,92]],K.fut,0,3)
+    +tx(284,106,"Night news:",K.fut,1.7,12.5,"end")+tx(284,121,"only futures move",K.fut,1.7,12.5,"end")
+    +tx(214,166,"Spot frozen",K.spot,1.2,12.5)
+    +`<line x1="380" y1="146" x2="380" y2="100" stroke="${K.spot}" stroke-width="3" class="fade" style="animation-delay:2.6s"/>`
+    +pl([[380,100],[540,96]],K.spot,2.7,.8)
+    +tx(390,132,"Open: spot jumps",K.spot,2.9,12.5)+tx(390,147,"to catch up",K.spot,2.9,12.5),210)},
+ {t:"News And Secret Clues",
+  b:()=>`<p>News hits <b>halfway</b> through every session. A few random players see it <b>early</b>, as a secret clue.</p>`+facts([["Clue Holders",P.clueHolders],["News At",mmss(P.roundSeconds/2)],["News Size",P.shockMin+"–"+P.shockMax+" pts"],["Noise",`±${P.noiseSd} pts`]]),
+  s:()=>{let ic="";const hold=[1,5,8];
+    for(let i=0;i<10;i++){const x=50+(i%5)*52,y=i<5?68:122;
+      ic+=`<circle cx="${x}" cy="${y}" r="17" fill="${K.g}"/><circle cx="${x}" cy="${y-5}" r="6" fill="${K.s}"/><path d="M${x-10} ${y+11} q10 -14 20 0" fill="${K.s}"/>`;
+      if(hold.includes(i))ic+=`<circle cx="${x}" cy="${y}" r="21" fill="none" stroke="${K.spot}" stroke-width="3" class="popin" style="animation-delay:${.5+hold.indexOf(i)*.25}s"/>`;
+      ic+=`<circle cx="${x}" cy="${y}" r="21" fill="none" stroke="${K.fut}" stroke-width="3" class="fade" style="animation-delay:3.3s"/>`}
+    return svg(ic+tx(154,30,`${P.clueHolders} players get the clue`,K.spot,.6,13,"middle")
+      +`<g class="popin" style="animation-delay:1.3s"><rect x="352" y="22" width="160" height="150" rx="18" fill="${K.t}"/><rect x="364" y="40" width="136" height="114" rx="10" fill="#0A1530"/>
+      <text x="432" y="68" fill="${K.s}" font-size="11" font-weight="700" text-anchor="middle" letter-spacing="1">SECRET CLUE</text>
+      <text x="432" y="104" fill="${K.up}" font-size="30" text-anchor="middle" font-weight="600">+18 pts</text>
+      <text x="432" y="130" fill="${K.s}" font-size="11" text-anchor="middle">Only you see this</text></g>`
+      +`<rect x="40" y="186" width="480" height="8" rx="4" fill="${K.g}"/><rect x="40" y="186" width="480" height="8" rx="4" fill="${K.fut}" class="grow" style="--d:5s"/>`
+      +`<line x1="280" y1="178" x2="280" y2="202" stroke="${K.spot}" stroke-width="3"/>`
+      +tx(40,212,"Session starts",K.s,0,11.5)+tx(520,212,"Session ends",K.s,0,11.5,"end")+tx(280,212,"News",K.spot,0,11.5,"middle")
+      +tx(280,172,"Halfway: everyone learns the news",K.fut,3.2,12.5,"middle"),222)}},
+ {t:"Read The Market",
+  b:()=>`<p>Players buy → house raises prices → <b>futures climb before spot</b>. That's a hint someone knows. Could be a bluff.</p>`+facts([["House Moves",P.lean+" pts"],["Per Contract","bought/sold"],["Resets At","News"]]),
+  s:()=>svg(gridl()+pl([[20,160],[330,160]],K.spot,0,1.2)
+    +pl([[20,157],[110,157],[110,142],[170,142],[170,126],[230,126],[230,110],[290,110],[290,96],[330,96]],K.fut,0,2.6)
+    +[[110,142],[170,126],[230,110],[290,96]].map((p,i)=>`<g class="popin" style="animation-delay:${.6+i*.55}s"><circle cx="${p[0]}" cy="${p[1]-18}" r="10" fill="${K.up}"/><text x="${p[0]}" y="${p[1]-14}" fill="#0A1530" font-size="11" font-weight="800" text-anchor="middle">B</text></g>`).join("")
+    +tx(26,184,"Spot: flat, no news yet",K.spot,.8,12.5)+tx(90,60,"Players keep buying, so futures climb",K.fut,1.4,13)
+    +`<line x1="330" y1="30" x2="330" y2="200" stroke="${K.t}" stroke-dasharray="5 5" class="fade" style="animation-delay:2.9s"/>`
+    +tx(338,44,"NEWS: +20",K.up,3,14)
+    +`<line x1="330" y1="160" x2="330" y2="78" stroke="${K.spot}" stroke-width="3" class="fade" style="animation-delay:3.2s"/>`
+    +pl([[330,78],[540,78]],K.spot,3.2,.8)+pl([[330,96],[340,78],[540,76]],K.fut,3.2,.8)
+    +tx(538,104,"The futures knew first",K.t,3.8,13,"end"))},
+ {t:"How Big Should Your Bet Be?",
+  b:()=>`<p><b>Edge</b> = target price − price you pay. Each contract pushes the price ${P.lean} pts, so <b>the edge shrinks</b>. Stop at zero.</p>`,
+  s:()=>{let g=`<line x1="40" y1="40" x2="540" y2="40" stroke="${K.spot}" stroke-width="2" stroke-dasharray="6 5"/>`+tx(40,30,"Your clue: the price is heading to 5,020",K.spot,0,13)
+      +`<line x1="40" y1="200" x2="540" y2="200" stroke="${K.g}" stroke-width="2"/>`+tx(40,216,"Now 5,000",K.s,0,11.5);
+    const edges=[17.5,15,12.5,10,7.5,5,2.5,0],col=e=>e>=10?K.up:e>=5?"#C9C46A":e>0?K.spot:K.dn;
+    edges.forEach((e,i)=>{const x=78+i*58,yp=40+e*8,d=.4+i*.38;
+      g+=`<rect x="${x-15}" y="${40}" width="30" height="${Math.max(e*8,2)}" fill="${col(e)}" opacity=".85" class="growup" style="animation-delay:${d}s"/>`;
+      g+=`<circle cx="${x}" cy="${yp}" r="5" fill="${K.t}" class="popin" style="animation-delay:${d}s"/>`;
+      g+=tx(x,yp+20,e?"+"+e:"STOP",e?K.t:K.dn,d+.15,e?12.5:13.5,"middle",700)});
+    return svg(g+tx(300,236,"Each step: 5 more contracts bought, and the price you pay climbs",K.s,3.5,12,"middle",500),244)
+      +`<div class="three">
+      <div class="scard fadeup" style="animation-delay:.4s"><h4 style="color:${K.up}">Big clue (e.g. +35)</h4><div class="st">Big edge: bet big, up to your limit of ${P.limit}.</div></div>
+      <div class="scard fadeup" style="animation-delay:.8s"><h4 style="color:${K.spot}">Smaller clue (e.g. +12)</h4><div class="st">The edge runs out sooner, and others may trade first. Bet less.</div></div>
+      <div class="scard fadeup" style="animation-delay:1.2s"><h4 style="color:${K.dn}">No clue</h4><div class="st">You're guessing, and the other side may know more. 0 to 2 contracts.</div></div></div>`}},
+ {t:"You're Ready",
+  b:()=>`<p>At the end: a <b>report card</b> with your bet sizes and profit, with and without a clue.</p><p class="note" id="ireadynote"></p>`,
+  s:()=>`<ul class="checks">${[
+    `<b>Buy</b> if you think the price will rise, <b>sell</b> if you think it will fall.`,
+    `Hold up to <b>${P.limit} contracts</b> either way. No fees.`,
+    `<b>News</b> comes out halfway through every session.`,
+    `<b>${P.clueHolders} players</b> get a secret clue each session.`,
+    `Futures running ahead of spot? <b>Someone may know.</b>`,
+    `<b>Bet big only with an edge.</b> Bet small when guessing.`,
+    `<b>Profit is your score.</b> Every win is someone's loss.`,
+    `Futures settle at the <b>final spot index</b>.`].map((t,i)=>`<li class="fadeup" style="animation-delay:${.15+i*.22}s">${t}</li>`).join("")}</ul>`}
+];
+function openIntro(i){islide=i||0;$("intro").classList.remove("hide");drawSlide()}
+function closeIntro(){$("intro").classList.add("hide");
+  if(S&&S.joined&&!S.me.introDone)post("/api/intro",{}).then(poll)}
+function drawSlide(){
+  const sl=SLIDES[islide],last=islide===SLIDES.length-1;
+  $("istep").textContent=`How To Play · ${islide+1} Of ${SLIDES.length}`;
+  $("ititle").textContent=sl.t;$("itext").innerHTML=sl.b();
+  $("istage").innerHTML=sl.s();
+  $("idots").innerHTML=SLIDES.map((_,k)=>`<i class="${k===islide?"on":""}" data-k="${k}" title="Step ${k+1}"></i>`).join("");
+  $("iback").disabled=islide===0;$("inext").textContent=last?"I'm Ready":"Next";
+  $("iskip").classList.toggle("hide",last);
+  introStatus();
+}
+function introStatus(){
+  const st=S&&S.status,strip=$("istrip");
+  strip.classList.toggle("hide",!(st==="open"||st==="paused"));
+  strip.textContent=st==="open"?"The game has started! Finish quickly or press Skip to jump in.":"The game is paused right now.";
+  const n=$("ireadynote");
+  if(n)n.textContent=!S||!S.joined?"Sign up to join the game.":S.status==="waiting"?`Waiting for the game master to start. ${S.people} ${S.people===1?"player has":"players have"} joined.`:S.status==="open"?"The game is running. Jump in!":"";
+}
+$("idots").onclick=e=>{if(e.target.dataset.k!=null){islide=+e.target.dataset.k;drawSlide()}};
+$("iback").onclick=()=>{if(islide>0){islide--;drawSlide()}};
+$("inext").onclick=()=>{if(islide<SLIDES.length-1){islide++;drawSlide()}else closeIntro()};
+$("iskip").onclick=closeIntro;
+$("ireplay").onclick=()=>drawSlide();
+document.addEventListener("keydown",e=>{if($("intro").classList.contains("hide"))return;
+  if(e.key==="ArrowRight")$("inext").click();else if(e.key==="ArrowLeft")$("iback").click();else if(e.key==="Escape")closeIntro()});
+if(new URLSearchParams(location.search).has("intro")){introShown=true;openIntro(0)}
+
+
+
+function orderInfo(){
+  const s=S,m=s.me,open=s.status==="open",b=sweep("B",qty||1),sl=sweep("S",qty||1),lim=num($("px").value);
+  $("estb").textContent=otype==="limit"?(lim>0?f2(lim):"–"):b.avg==null?"No offers":f2(b.avg);
+  $("ests").textContent=otype==="limit"?(lim>0?f2(lim):"–"):sl.avg==null?"No bids":f2(sl.avg);
+  $("maxb").textContent=`${m.roomBuy} contracts`;$("maxs").textContent=`${m.roomSell} contracts`;
+  $("buyb").disabled=!open||m.roomBuy<=0||!qty||(otype==="market"&&b.first==null);
+  $("sellb").disabled=!open||m.roomSell<=0||!qty||(otype==="market"&&sl.first==null);
+  $("buyb").textContent=`Buy / Long ${qty||""}`;$("sellb").textContent=`Sell / Short ${qty||""}`;
+}
+function showToast(t,b){$("toastt").textContent=t;$("toastb").innerHTML=b;$("toast").classList.remove("hide");
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>$("toast").classList.add("hide"),12000)}
+
+/* ---------- main render ---------- */
 function render(s){
-  S=s;
-  $("join").classList.toggle("hide",s.joined);$("play").classList.toggle("hide",!s.joined);
-  $("stripwrap").classList.toggle("hide",!s.joined);$("leave").classList.toggle("hide",!s.joined);
+  S=s;if(s.params)P=s.params;
+  $("join").classList.toggle("hide",s.joined);$("term").classList.toggle("hide",!s.joined);
+  $("leave").classList.toggle("hide",!s.joined);$("who").classList.toggle("hide",!s.joined);
   $("lmon").classList.toggle("hide",!s.isAdmin);$("lover").classList.toggle("hide",!s.isAdmin);
+  $("pill").textContent={waiting:"Waiting",open:"Live",paused:"Paused",settled:"Finished"}[s.status];$("pill").className="pill "+s.status;
   if(!s.joined){
-    $("who").textContent="";
-    if(!jmsgErr)say("jmsg",{ok:true,msg:`${s.people} ${s.people===1?"person has":"people have"} signed up. ${s.status==="waiting"?"Trading starts when the game master opens the market.":"The game is under way; you can still join."}`});
+    $("hstats").innerHTML="";$("lastpx").textContent="–";
+    if(!jmsgErr){$("jmsg").textContent=`${s.people} ${s.people===1?"player":"players"} signed up · ${s.status==="waiting"?"waiting to start":"game under way, you can still join"}`;$("jmsg").classList.remove("bad")}
     return;
   }
-  const m=s.me,p=s.params,over=s.status==="settled",ln=s.news[s.news.length-1];
-  $("who").textContent=`${s.name}, Trader ${m.seat+1}`;
-  const st={waiting:"Waiting To Start",open:"Open",paused:"Paused",settled:"Settled"}[s.status];
-  $("strip").innerHTML=`<div>Status<b>${st}</b></div><div>Day<b>${s.day} Of ${s.days}</b></div>
-    <div>Session<b>${over?"Finished":s.session+(s.cashOpen?"":", Cash Market Closed")}</b></div>
-    <div>${s.newsOut?"Session Ends In":"News In"}<b>${over?"Done":Math.ceil(s.newsOut?s.secondsLeft:s.newsIn)+" Seconds"}</b></div>
-    <div>Volume<b>${s.volume.toLocaleString("en-US")} Contracts</b></div>
-    <div>Latest News<b>${ln?`Day ${ln.day} ${ln.session.split(" ")[0]} ${sg(+ln.shock.toFixed(1))} Pts`:"None Yet"}</b></div>`;
-  $("go").textContent={waiting:"Start Game",paused:"Resume Game",settled:"New Game"}[s.status]||"";
-  $("go").classList.toggle("hide",s.status==="open"||!s.isAdmin);
-  ["buy","sell","lift","hit"].forEach(id=>$(id).disabled=s.status!=="open");
-  if(!$("px").value&&document.activeElement!==$("px"))$("px").value=(Math.round(s.fair*4)/4).toFixed(2);
-  $("banner").classList.toggle("hide",s.status==="open");
-  $("banner").textContent=over?`Settled At ${f2(s.settle)} Points. Your Final Profit Or Loss: USD ${usd(m.pnl)}.`
-    :s.status==="waiting"?`You are signed up as Trader ${m.seat+1}. ${s.people} ${s.people===1?"person is":"people are"} in. Trading starts when the game master opens the market.`
-    :"The game is paused by the game master.";
-
-  const basis=s.last==null?null:s.last-s.spot;
-  $("mkt").innerHTML=`<span>Spot Index, ${s.cashOpen?"Live":over?"Final":"Last Close"} (Pts)</span><b>${f2(s.spot)}</b>
-    ${s.cashOpen||over?"":`<span>Indicated Open, Close Plus Overnight News (Pts)</span><b>${f2(s.indicatedOpen)}</b>`}
-    <span>Cost Of Carry To Expiry (Pts)</span><b>${f2(s.carryLeft)}</b>
-    <span>Fair Futures, Spot Plus Carry (Pts)</span><b>${f2(s.fair)}</b>
-    <span>Last Futures Trade (Pts)</span><b>${f2(s.last)}</b>
-    <span>Basis, Futures Less Spot (Pts)</span><b>${basis==null?"None Yet":f2(basis)}</b>`;
-  chart(s.hist);
-
-  const bb=s.book.bids[0],ba=s.book.asks[0],prem=s.last==null?null:s.last-s.fair;
-  $("arb").innerHTML=`<span>Fair Futures</span><b>${f2(s.fair)}</b>
-    <span>House Bid And Offer, Fair ± ${(p.fee*100).toFixed(2)}%</span><b>${f2(s.fair*(1-p.fee))} To ${f2(s.fair*(1+p.fee))}</b>
-    <span>Last Trade Less Fair Futures</span><b>${prem==null?"None Yet":sg(+prem.toFixed(2))}</b>
-    <span>Best Bid And Offer</span><b>${bb?f2(bb.p):"None"} And ${ba?f2(ba.p):"None"}</b>`;
-  $("arbmsg").textContent=over?"":s.cashOpen
-    ?"Cash session: the index is live. Fair futures uses public news only. A member with a clue knows more."
-    :"Overnight: the index is frozen at its close, so the future alone prices the news. Watch the indicated open.";
-
-  const row=(l,c)=>`<tr class="px ${c}" data-p="${l.p}"><td>${f2(l.p)}</td><td>${l.q}</td><td class="l">${l.house?'<span class="tag house">House</span>':""}${l.you?`<span class="tag you">You ${l.you}</span>`:""}</td></tr>`;
-  $("book").innerHTML=s.book.asks.slice().reverse().map(l=>row(l,"ask")).join("")
-    +`<tr class="mid"><td colspan="3">${bb&&ba?"Spread "+f2(ba.p-bb.p)+" Points":"Offers Above, Bids Below"}</td></tr>`
-    +s.book.bids.map(l=>row(l,"bid")).join("");
-  $("orders").innerHTML=m.orders.map(o=>`<tr><td class="${o.side==="Buy"?"up":"dn"}">${o.side}</td><td>${f2(o.p)}</td><td>${o.q}</td><td><button data-id="${o.id}">Cancel</button></td></tr>`).join("")
-    ||`<tr><td colspan="4" class="l mut">No Resting Orders.</td></tr>`;
-
-  // private clue: a pop-up the moment it arrives, then it stays in the account panel
+  const m=s.me,over=s.status==="settled",open=s.status==="open",sig=s.signal;
+  if(!m.introDone&&!introShown){introShown=true;openIntro(0)}
+  $("who").textContent=`${s.name} · #${m.seat+1}`;
+  $("go").textContent={waiting:"Start Game",paused:"Resume",settled:"New Game"}[s.status]||"";
+  $("go").classList.toggle("hide",open||!s.isAdmin);
+  // header: last trade and stats
+  const pxNow=over?s.settle:sig.price;if(pxNow!==lastTrade){prevTrade=lastTrade;lastTrade=pxNow}
+  const dir=prevTrade==null?"":lastTrade>prevTrade?"up":lastTrade<prevTrade?"dn":"";
+  $("lastpx").textContent=f2(pxNow);$("lastpx").className=dir;
+  $("lastsub").textContent=over?"Final settlement":"Futures price";
+  const prog=over?1:1-s.secondsLeft/P.roundSeconds,net=sig.buy-sig.sell;
+  const hs=(l,v,c="",o="")=>`<div class="hs ${o}"><span>${l}</span><b class="${c}">${v}</b></div>`;
+  $("hstats").innerHTML=hs("Last Trade",f2(s.last),"","opt")+hs(`Spot Index ${s.cashOpen?"☀":"☾"}`,f2(s.spot),"gold")+hs("Fair Value",f2(s.fair))
+    +hs("Futures − Fair",over?"–":f1(sig.gap),over?"":cls(sig.gap))
+    +hs("Session",over?"Done":`D${s.day} ${s.cashOpen?"Cash":"Night"} · ${s.round+1}/${s.rounds}`)
+    +`<div class="hs"><span>${over?"Game":s.newsOut?"Session Ends":"News In"}</span><b>${over?"Over":mmss(s.newsOut?s.secondsLeft:s.newsIn)}</b><div class="mini"><i style="width:${Math.min(Math.max(prog,0),1)*100}%"></i><u></u></div></div>`
+    +hs("Volume",s.volume.toLocaleString("en-US"),"","opt");
+  // chart, overlay and signal
+  $("cint").textContent=`${Math.round(s.candleSeconds)}s candles`;
+  chart();
+  const ov=$("overlay");ov.classList.toggle("hide",open||over);
+  if(s.status==="waiting")ov.innerHTML=`<div><b>Waiting For The Start</b><span class="mut">${s.people} players · ${s.rounds} sessions · ${Math.round(s.rounds*P.roundSeconds/60)} min</span><div class="row"><button onclick="openIntro(0)">How To Play</button>${s.isAdmin?`<button class="primary" onclick="$('go').click()">Start Game</button>`:""}</div></div>`;
+  else if(s.status==="paused")ov.innerHTML=`<div><b>Paused</b><span class="mut">Trading resumes shortly</span></div>`;
+  const gap=over?0:sig.gap,gp=Math.max(-20,Math.min(20,gap));
+  $("needle").style.left=(50+gp/20*48)+"%";$("needle").style.background=Math.abs(gap)<2?"var(--text)":gap>0?"var(--up)":"var(--dn)";
+  $("gapv").innerHTML=`<span class="${cls(gap)}">${f1(gap)} pts</span>`;
+  const tot=sig.buy+sig.sell;$("flowb").style.width=(tot?sig.buy/tot*100:0)+"%";$("flows").style.width=(tot?sig.sell/tot*100:0)+"%";
+  $("flowv").innerHTML=`<span class="up">${sig.buy}</span> / <span class="dn">${sig.sell}</span>`;
+  const strong=Math.abs(gap)>=5||Math.abs(net)>=10,some=Math.abs(gap)>=2||Math.abs(net)>=4,upw=(gap||net)>0;
+  $("verdict").innerHTML=over?`<span class="mut">Game over</span>`:!sig.preNews?`<span class="mut">News out · no secrets left this session</span>`
+    :!some?`<span class="mut">● Quiet · no sign of a secret · noise is about ±${P.noiseSd} pts a session</span>`
+    :`<span class="${upw?"up":"dn"}">${upw?"▲":"▼"} ${strong?"Strong":"Weak"} ${upw?"buying":"selling"} before the news · someone may know ${upw?"good":"bad"} news</span>`;
+  // order book with cumulative depth (walls)
+  const asks=s.book.asks,bids=s.book.bids;let ca=0,cb=0;
+  const ac=asks.map(l=>ca+=l.q),bc=bids.map(l=>cb+=l.q),mx=Math.max(1,ca,cb),big=Math.max(1,...asks.map(l=>l.q),...bids.map(l=>l.q));
+  const row=(l,sum,side)=>`<tr class="${side}${l.you?" me":""}" data-p="${l.p}"><td>${f2(l.p)}</td><td style="${l.q>=big*.99&&l.q>=10?"font-weight:800":""}">${l.q}</td><td>${sum}<span class="depth" style="width:${sum/mx*100}%;background:${side==="ask"?"var(--dnbg)":"var(--upbg)"}"></span></td></tr>`;
+  $("asks").innerHTML=asks.map((l,i)=>row(l,ac[i],"ask")).reverse().join("")||`<tr><td colspan="3" class="mut">No sellers</td></tr>`;
+  $("bids").innerHTML=bids.map((l,i)=>row(l,bc[i],"bid")).join("")||`<tr><td colspan="3" class="mut">No buyers</td></tr>`;
+  $("midpx").textContent=f2(sig.price);$("midpx").className=cls(sig.gap);
+  $("midsub").innerHTML=`Mark · Spot <span class="gold">${f2(s.spot)}</span>${bids[0]&&asks[0]?` · Spread ${f2(asks[0].p-bids[0].p)}`:""}`;
+  // recent trades
+  $("tape").innerHTML=s.tape.map(t=>`<tr><td class="${t.took==="Buy"?"up":"dn"}">${f2(t.p)}</td><td>${t.q}${t.you?' <span class="tag you">You</span>':""}</td><td class="mut">${t.t?hhmmss(t.t):""}</td></tr>`).join("")
+    ||`<tr><td colspan="3" class="mut">No trades yet</td></tr>`;
+  // clue bar and pop-up
   const c=m.clue,live=c&&!c.public,others=c?c.holders-1:0;
-  const shared=c?(others>0?`${others} other ${others===1?"member has":"members have"} it too.`:"No one else has it."):"";
-  $("clue").className="clue"+(live?" live":"");
-  $("clue").innerHTML=live?`<b>Your Private Clue: ${sg(+c.value.toFixed(1))} Points.</b><br><span class="mut">This session's news, before it is public. It goes public in ${Math.ceil(s.newsIn)} seconds. ${shared} Your own fair futures value is ${f2(m.myFair)} points.</span>`
-    :c?`<b>Your Clue Is Now Public.</b><br><span class="mut">The shock of ${sg(+c.value.toFixed(1))} points is in fair value for everyone.</span>`
-    :`<b>No Private Clue This Session.</b><br><span class="mut">Each session ${p.clueHolders} members are drawn at random to see the news early. Clues you have had so far: ${m.cluesSoFar}.</span>`;
+  $("cluebar").className="cluebar"+(live?" live":"");
+  $("cluebar").innerHTML=live?`<div class="t">🔒 Secret Clue · Only You${others?` + ${others}`:""}</div><div class="v"><b class="${c.value>=0?"up":"dn"}">${f1(c.value)} pts</b><span>Target <b>${f2(m.myFair)}</b></span><span>Public in <b>${mmss(s.newsIn)}</b></span></div>`
+    :c?`<div class="t">Your Clue Is Public</div><div class="v"><b>${f1(c.value)} pts</b><span>Edge left <b>0</b></span></div>`
+    :`<div class="t">No Secret Clue This Session</div><div class="v"><span>Your clues <b>${m.cluesSoFar}</b></span><span>Holders/session <b>${P.clueHolders}</b></span><span>Watch <b>Futures − Fair</b></span></div>`;
   const key=`${s.gameId}-${c?c.id:"x"}`;
-  if(live&&s.status==="open"&&sessionStorage.getItem("clueSeen")!==key){
-    sessionStorage.setItem("clueSeen",key);
-    $("popval").textContent=`${sg(+c.value.toFixed(1))} Points`;$("popval").className=c.value>=0?"up":"dn";
-    $("poptext").textContent=`This session's news will move ${s.cashOpen?"the index":"the future"} by this much. It goes public in about ${Math.ceil(s.newsIn)} seconds. ${shared}`;
-    $("pop").classList.remove("hide");
-  }
+  if(live&&open&&sessionStorage.getItem("clueSeen")!==key){sessionStorage.setItem("clueSeen",key);
+    $("popval").textContent=`${f1(c.value)} pts`;$("popval").className="val "+(c.value>=0?"up":"dn");
+    $("poptext").innerHTML=`Public in <b>${mmss(s.newsIn)}</b> · target <b>${f2(m.myFair)}</b> · ${others} other${others===1?"":"s"} know<br><br><b>${c.value>0?"Buy":"Sell"} before the news.</b> The Bet Sizer shows how many.`;
+    $("pop").classList.remove("hide")}
   if(!live)$("pop").classList.add("hide");
-
-  $("eq").textContent=usd(m.equity);$("eq").className="big "+cls(m.pnl);
-  $("eqparts").innerHTML=`<span>Starting Capital (USD)</span><b>${usd(m.capital)}</b>
-    <span>Realised Profit Or Loss, Closed Trades (USD)</span><b class="${cls(m.realisedUsd)}">${usd(m.realisedUsd)}</b>
-    <span>Unrealised Profit Or Loss, Open Position (USD)</span><b class="${cls(m.unrealisedUsd)}">${usd(m.unrealisedUsd)}</b>
-    <span>Fees Paid (USD)</span><b>${usd(-m.feesUsd)}</b>
-    <span>Profit Or Loss So Far (USD)</span><b class="${cls(m.pnl)}">${usd(m.pnl)}</b>`;
-  $("poshead").textContent=m.pos===0?"Position: None Open (Contracts)"
-    :`Position: ${m.pos>0?"Long":"Short"} ${Math.abs(m.pos)} At Average ${f2(m.avg)}, Marked At ${f2(m.mark)} (Pts)`;
-  const w=Math.abs(m.pos)/p.limit*50;
+  // news toast
+  const nc=s.gameId+":"+s.news.length;
+  if(lastNews!==null&&lastNews!==nc&&s.news.length&&lastNews.split(":")[0]===String(s.gameId)){const n=s.news[s.news.length-1],said=Math.abs(n.lead)>=1,ok=(n.lead>0)===(n.shock>0);
+    showToast(`News ${f1(n.shock)} pts ${n.spot==null?"☾":"☀"}`,`Futures hinted <b>${f1(n.lead)}</b> ${said?(ok?"✓":"✗"):"·"} &nbsp;·&nbsp; Your bet <b>${betTxt(m.pos)}</b>${m.pos?` &nbsp;·&nbsp; ≈ USD <b>${usd(m.pos*n.shock*P.mult)}</b>`:""}${n.spot==null?" &nbsp;·&nbsp; spot gaps at the open":""}`)}
+  lastNews=nc;
+  // order entry, sizer
+  $("slider").max=P.limit;$("marks").innerHTML=[0,.25,.5,.75,1].map(f=>`<span data-f="${f}">${f?Math.round(f*P.limit):0}</span>`).join("");
+  $("avbl").textContent=`${usdp(m.equity)} USD`;
+  $("opnl").textContent=`${usd(m.pnl)} USD`;$("opnl").className=cls(m.pnl);$("opos").textContent=betTxt(m.pos);$("opos").className=cls(m.pos);
+  orderInfo();coach(s);
+  // account
+  $("pnl").textContent=`${usd(m.pnl)} USD`;$("pnl").className="pnlbig "+cls(m.pnl);
+  $("acct").innerHTML=`<span>Balance</span><b>${usdp(m.equity)}</b><span>Unrealised PNL</span><b class="${cls(m.unrealisedUsd)}">${usd(m.unrealisedUsd)}</b>
+    <span>Realised PNL</span><b class="${cls(m.realisedUsd)}">${usd(m.realisedUsd)}</b><span>Position</span><b class="${cls(m.pos)}">${betTxt(m.pos)}</b>
+    <span>Per 1 pt move</span><b>${(Math.abs(m.pos)*P.mult).toLocaleString("en-US")} USD</b><span>Fees</span><b>0</b>`;
+  const w=Math.abs(m.pos)/P.limit*50;
   $("bar").style.cssText=`width:${w}%;left:${m.pos>=0?50:50-w}%;background:${m.pos>=0?"var(--up)":"var(--dn)"}`;
-  $("scale").innerHTML=`<span>Short ${p.limit}</span><span>Now ${sg(m.pos)}</span><span>Long ${p.limit}</span>`;
-  $("room").innerHTML=`<span>Margin In Use, ${Math.abs(m.pos)} × USD ${p.marginPer.toLocaleString("en-US")} (USD)</span><b>${usd(m.marginUsed)}</b>
-    <span>Free Capital, Equity Less Margin (USD)</span><b class="${cls(m.freeCapital)}">${usd(m.freeCapital)}</b>
-    <span>You Can Still Buy (Contracts)</span><b>${m.roomBuy}</b>
-    <span>You Can Still Sell (Contracts)</span><b>${m.roomSell}</b>`;
-  $("mcall").textContent=m.marginCall?"Margin call: your equity is below the margin on your position. You can only reduce the position."
-    :m.effLimit<p.limit?`Your capital now supports ${m.effLimit} contracts, below the position limit of ${p.limit}.`
-    :`One contract is worth about USD ${p.contractValue.toLocaleString("en-US")} and moves USD ${p.mult} a point. Resting orders count toward the limit of ${p.limit}.`;
-  $("mcall").style.color=m.marginCall?"var(--dn)":"var(--sub)";
-  $("top5").innerHTML=s.top5.map((r,i)=>`<tr class="${r.you?"me":""}"><td>${i+1}</td><td class="l">${esc(r.name)}${r.you?'<span class="tag you">You</span>':""}</td><td class="${cls(r.pnl)}">${usd(r.pnl)}</td></tr>`).join("");
-
-  $("finalwrap").classList.toggle("hide",!s.board);
-  if(s.board)$("final").innerHTML=s.board.slice().sort((a,b)=>b.pnl-a.pnl).map((r,i)=>`<tr class="${r.seat===m.seat?"me":""}"><td>${i+1}</td><td class="l">${esc(r.name)}</td><td>${sg(r.pos)}</td><td>${r.name==="House"?"":r.clues}</td><td class="${cls(r.pnl)}">${usd(r.pnl)}</td></tr>`).join("")
-    +`<tr><td>Total</td><td class="l">Members Plus The House</td><td>${sg(s.sumPos)}</td><td></td><td>${usd(s.sumPnl)}</td></tr>`;
-
-  let prev=0;
-  $("mtm").innerHTML=m.mtm.map(r=>{const d=r.eq-prev;prev=r.eq;return `<tr><td>${r.r}</td><td>${f2(r.px)}</td><td class="${cls(d)}">${usd(d)}</td><td class="${cls(r.eq)}">${usd(r.eq)}</td></tr>`}).reverse().join("")
-    ||`<tr><td colspan="4" class="l mut">The first daily settlement is at the Day 1 cash close.</td></tr>`;
-  $("tape").innerHTML=s.tape.map(t=>`<tr><td>Day ${Math.ceil(t.r/2)} ${t.r%2?"Cash":"Night"}</td><td>${f2(t.p)}</td><td>${t.q}</td><td class="l">${t.you?`<span class="tag you">You ${t.you}</span>`:""}${t.house?'<span class="tag house">House</span>':""}</td></tr>`).join("")
-    ||`<tr><td colspan="4" class="l mut">No Trades Yet.</td></tr>`;
-  $("news").innerHTML=s.news.slice().reverse().map(n=>`<tr><td>Day ${n.day} ${n.session.split(" ")[0]}</td><td class="${cls(n.shock)}">${sg(+n.shock.toFixed(1))}</td><td>${n.spot==null?"Gaps At Open":f2(n.spot)}</td></tr>`).join("")
-    ||`<tr><td colspan="3" class="l mut">No News Yet.</td></tr>`;
-
-  if(!$("rules").innerHTML)$("rules").innerHTML=[
-    `Everyone trades one futures contract on the index with each other. There are no bots. One contract is worth about USD ${p.contractValue.toLocaleString("en-US")} and gains or loses USD ${p.mult} for every index point.`,
-    `You start with USD ${p.capital.toLocaleString("en-US")} of capital. Each contract you hold ties up USD ${p.marginPer.toLocaleString("en-US")} of it as margin.`,
-    `Position limit: ${p.limit} contracts, long or short. Your resting orders count toward it.`,
-    `The game is ${s.days} trading days. Each day has a cash session (the stock market is open, like 09:30 to 16:00 New York time) and an overnight session (the stock market is closed).`,
-    `The spot index is the reference price. It prints only in the cash session and is frozen overnight. The future trades in both sessions.`,
-    `One news shock goes public midway through every session. Cash-session news moves the index at once. Overnight news moves only the future; the index gaps to it at the next open.`,
-    `Private clue: at the start of each session ${p.clueHolders} members, drawn at random, see that session's shock before it is public. It pops up on their screen only. Members who have had fewer clues are drawn first.`,
-    `Fair futures = spot + overnight news not yet in spot + cost of carry to expiry. It uses public news only.`,
-    `Trades happen in a limit order book: when a bid meets an offer, at the resting order's price. Each trade has its own price.`,
-    `The house market maker always quotes at fair value less and plus ${(p.fee*100).toFixed(2)}%, ${p.houseSize} contracts a side. It only posts quotes and never takes your order.`,
-    `Fees: USD ${p.futFeeUsd.toFixed(2)} a contract a side, paid to the house.`,
-    `Daily settlement: at each cash close every account is marked to market at the closing futures price.`,
-    `Final settlement is the opening index print after the last overnight session. Every open position is closed at that price.`
-  ].map(t=>`<li>${t}</li>`).join("");
+  $("scale").innerHTML=`<span>Short ${P.limit}</span><span>${m.pos?betTxt(m.pos):"Flat"}</span><span>Long ${P.limit}</span>`;
+  // bottom tabs
+  $("npos").textContent=m.pos?1:0;$("nord").textContent=m.orders.length;
+  $("b-pos").innerHTML=m.pos?`<table><thead><tr><th class="l">Symbol</th><th>Size</th><th>Entry Price</th><th>Mark Price</th><th>Spot</th><th>PNL (USD)</th><th></th></tr></thead><tbody>
+    <tr><td class="l"><b>UST500</b> <span class="tag ${m.pos>0?"b":"s"}">${m.pos>0?"Long":"Short"}</span></td><td class="${cls(m.pos)}">${sg(m.pos)}</td><td>${f2(m.avg)}</td><td>${f2(m.mark)}</td><td class="gold">${f2(s.spot)}</td>
+    <td class="${cls(m.unrealisedUsd)}">${usd(m.unrealisedUsd)}</td><td><button data-close="1" ${open?"":"disabled"}>Close At Market</button></td></tr></tbody></table>`
+    :`<div class="empty">No open position</div>`;
+  $("b-ord").innerHTML=m.orders.length?`<table><thead><tr><th class="l">Side</th><th>Price</th><th>Size</th><th></th></tr></thead><tbody>${m.orders.map(o=>`<tr><td class="l ${o.side==="Buy"?"up":"dn"}">${o.side} Limit</td><td>${f2(o.p)}</td><td>${o.q}</td><td><button data-id="${o.id}">Cancel</button></td></tr>`).join("")}</tbody></table>`
+    :`<div class="empty">No open orders</div>`;
+  $("sesschart").innerHTML=sessChart(m.report,s.rounds,($("b-sess").clientWidth||900)-24);
+  $("mysess").innerHTML=m.report.slice().reverse().map(r=>`<tr class="${r.clue?"cl":""}"><td class="l">${sessName(r.r)}</td><td>${r.clue?"🔒 Yes":"–"}</td><td class="${cls(r.pos)}">${betTxt(r.pos)}</td><td class="${cls(r.shock)}">${f1(r.shock)}</td><td class="${cls(r.pnl)}">${usd(r.pnl)}</td></tr>`).join("")
+    ||`<tr><td colspan="5" class="l mut">Fills in as each session ends</td></tr>`;
+  $("news").innerHTML=s.news.slice().reverse().map(n=>{const said=Math.abs(n.lead)>=1,ok=(n.lead>0)===(n.shock>0);
+    return `<tr><td class="l">${sessName(n.r)}</td><td class="${cls(n.shock)}">${f1(n.shock)}</td><td class="${cls(n.lead)}">${f1(n.lead)}</td><td><span class="up">${n.flowBuy}</span> / <span class="dn">${n.flowSell}</span></td><td class="l">${said?`<span class="tag ${ok?"b":"s"}">${ok?"✓ Right way":"✗ Wrong way"}</span>`:'<span class="tag">Quiet</span>'}</td></tr>`}).join("")
+    ||`<tr><td colspan="5" class="l mut">No news yet</td></tr>`;
+  const board=s.board?s.board.filter(r=>r.name!=="House").sort((a,b)=>b.pnl-a.pnl):s.top5;
+  $("lead").innerHTML=board.map((r,i)=>`<tr class="${r.seat===m.seat?"me":""}"><td>${i+1}</td><td class="l">${esc(r.name)}${r.seat===m.seat?'<span class="tag you">You</span>':""}</td><td>${r.pos!=null?sg(r.pos):""}</td><td>${r.clues??""}</td><td class="${cls(r.pnl)}">${usd(r.pnl)}</td></tr>`).join("")
+    ||`<tr><td colspan="5" class="l mut">No players yet</td></tr>`;
+  $("reptab").classList.toggle("hide",!over);
+  if(over){reportCard(s);$("report2").innerHTML=$("report").innerHTML;if(rcShown!==s.gameId){rcShown=s.gameId;$("rcpop").classList.remove("hide");setTab("rep")}}
+  else if(btab==="rep")setTab("pos");
+  if(!$("rules").innerHTML)$("rules").innerHTML=rules().map(t=>`<li>${t}</li>`).join("");
 }
-const poll=()=>fetch(`/api/state?token=${token}`).then(r=>r.json()).then(render).catch(()=>{});
+setType("market");setQty(1);
+
+const poll=()=>fetch(`/api/state?token=${token}`).then(r=>r.json()).then(s=>{render(s);if(!$("intro").classList.contains("hide"))introStatus()}).catch(()=>{});
 poll();setInterval(poll,1000);
 </script>
 </body>
