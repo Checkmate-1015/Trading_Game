@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Futures Trading Game: Monitor</title>
+<style>
+:root{--mast:#073B3A;--mast-t:#F4EDDF;--mast-s:#BAD0CA;--bg:#FAF7F0;--card:#FFFDF8;--band:#F1ECE0;
+--rule:#E5DDCD;--rule2:#D4C9B2;--teal:#00857C;--text:#11302E;--sub:#586660;--up:#1B7A5A;--dn:#B0432D;--gold:#A07A2C}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:400 14px/1.45 "Avenir Next",system-ui,sans-serif}
+.mast{background:var(--mast);padding:18px 28px;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.mast h1{font:400 26px Optima,serif;color:var(--mast-t);margin:0}
+.mast p{margin:2px 0 0;color:var(--mast-s);font-size:13px}
+.mast .right{margin-left:auto;display:flex;gap:16px}
+.mast a{color:var(--mast-s);font-weight:500;white-space:nowrap}
+select,input,button{font:500 14px "Avenir Next",system-ui,sans-serif;color:var(--text)}
+select,input{background:var(--card);border:1px solid var(--rule2);border-radius:6px;padding:7px 9px}
+button{background:var(--band);border:1px solid var(--rule2);border-radius:6px;padding:7px 13px;cursor:pointer;white-space:nowrap}
+button:hover{border-color:var(--teal)}
+button.go{background:var(--up);border-color:var(--up);color:#fff}
+button.small{padding:2px 9px;font-size:12px}
+main{padding:20px 28px 40px;max-width:1700px;margin:0 auto}
+.sec{font:400 16px Optima,serif;color:var(--teal);margin:0 0 8px}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:14px 16px;margin-bottom:18px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:18px}
+.stat{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:12px 14px}
+.stat span{color:var(--sub);font-size:13px;white-space:nowrap}
+.stat b{display:block;font:400 24px Optima,serif;white-space:nowrap}
+.stat i{font-style:normal;color:var(--sub);font-size:12px;white-space:nowrap}
+.two{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(0,1fr);gap:18px;align-items:start}
+.three{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.4fr);gap:18px;align-items:start}
+@media(max-width:1200px){.two,.three{grid-template-columns:1fr}.stats{grid-template-columns:repeat(3,1fr)}}
+table{width:100%;border-collapse:collapse}
+th{font-weight:500;font-size:12.5px;color:var(--sub);text-align:right;padding:5px 6px;border-bottom:1px solid var(--teal);white-space:nowrap}
+td{padding:4px 6px;text-align:right;border-bottom:1px solid var(--rule);font-family:Optima,serif;font-size:14.5px;white-space:nowrap}
+th.l,td.l{text-align:left;font-family:"Avenir Next",system-ui,sans-serif;font-size:13px}
+tr.tot td{background:var(--band)}
+tr.now td{background:#E7F2EF}
+.up{color:var(--up)}.dn{color:var(--dn)}.mut{color:var(--sub);font-size:13px}
+.tag{font:500 12px "Avenir Next",system-ui,sans-serif;padding:1px 7px;border-radius:9px;background:var(--teal);color:#fff;margin-left:5px}
+.tag.left{background:var(--sub)}
+.scroll{max-height:440px;overflow:auto}
+.setup{display:grid;grid-template-columns:repeat(6,minmax(0,1fr)) auto;gap:10px;align-items:end}
+.setup label{display:block;font-size:12px;color:var(--sub);margin-bottom:3px;white-space:nowrap}
+.setup input{width:100%}
+input:disabled{opacity:.55}
+@media(max-width:1200px){.setup{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<div class="mast">
+  <div><h1>Game Master Monitor</h1><p id="sub">Traders@UST Futures Trading Game. This page shows hidden news and every account. Do not project it.</p></div>
+  <div class="right"><a href="/" target="_blank">Member Page</a><a href="/overview" target="_blank">Projector View</a></div>
+</div>
+<main>
+<div id="locked" class="card hide" style="max-width:520px;margin:40px auto">
+  <h2 class="sec">Game Master Only</h2>
+  <p class="mut">The computer running the server is always the game master. Another computer needs the key set on the server.</p>
+  <div class="btns"><input id="key" type="password" autocomplete="off" placeholder="Game Master Key"><button id="unlock">Unlock</button></div>
+</div>
+
+<div id="desk" class="hide">
+  <h2 class="sec">1 Controls</h2>
+  <div class="card btns">
+    <button data-act="start" class="go" id="bstart">Start Game</button><button data-act="pause">Pause</button>
+    <button data-act="next">Advance Now</button><button data-act="reset">New Game</button><button data-act="free">Remove Everyone</button>
+    <label for="hold" class="mut" style="margin-left:14px">Clue Holders Each Session</label>
+    <select id="hold"></select>
+    <span class="mut" id="amsg"></span>
+  </div>
+
+  <h2 class="sec">2 Game Setup</h2>
+  <div class="card">
+    <div class="setup">
+      <div><label for="s_days">Trading Days</label><input id="s_days" type="number"></div>
+      <div><label for="s_seconds">Seconds Per Session</label><input id="s_seconds" type="number"></div>
+      <div><label for="s_capital">Starting Capital (USD)</label><input id="s_capital" type="number"></div>
+      <div><label for="s_contractValue">Contract Value (USD)</label><input id="s_contractValue" type="number"></div>
+      <div><label for="s_margin">Margin Per Contract (USD)</label><input id="s_margin" type="number"></div>
+      <div><label for="s_limit">Position Limit (Contracts)</label><input id="s_limit" type="number"></div>
+      <button id="apply" class="go">Apply Setup</button>
+    </div>
+    <div class="mut" id="setupnote" style="margin-top:10px"></div>
+    <div class="mut" id="setupmsg" style="margin-top:4px"></div>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="two">
+    <div><h2 class="sec">3 All Accounts (USD Unless Stated)</h2>
+      <div class="card scroll" style="max-height:620px">
+        <table><thead><tr><th>Rank</th><th class="l">Name</th><th>Position (Contracts)</th><th>Average Price (Pts)</th><th>Resting Buy / Sell</th><th>Realised</th><th>Unrealised</th><th>Fees</th><th>Profit Or Loss</th><th>Equity</th><th>Clues</th><th></th></tr></thead><tbody id="acc"></tbody></table>
+        <div class="mut" id="accnote" style="margin-top:8px"></div>
+      </div></div>
+    <div><h2 class="sec">4 Hidden News And Clue Holders</h2>
+      <div class="card">
+        <table><thead><tr><th class="l">When</th><th>Shock (Pts)</th><th class="l">State</th><th class="l">Saw It Early</th></tr></thead><tbody id="sched"></tbody></table>
+        <div class="mut" id="schednote" style="margin-top:8px"></div>
+      </div></div>
+  </div>
+
+  <h2 class="sec">5 Session Checks: Profits Must Sum To Zero (USD)</h2>
+  <div class="card">
+    <table><thead><tr><th class="l">At The End Of</th><th>Members' Profit Or Loss</th><th>House Profit Or Loss</th><th>Total</th><th>Positions Sum (Contracts)</th><th class="l">Result</th></tr></thead><tbody id="checks"></tbody></table>
+    <div class="mut" style="margin-top:8px">Every buy is someone's sell, so what members win or lose the house loses or wins. The total must be 0 and positions must net to 0 at the end of every session.</div>
+  </div>
+
+  <div class="three">
+    <div><h2 class="sec">6 Offers, Full Book</h2>
+      <div class="card scroll"><table><thead><tr><th>Price (Pts)</th><th>Size (Contracts)</th><th class="l">Who</th></tr></thead><tbody id="asks"></tbody></table></div></div>
+    <div><h2 class="sec">7 Bids, Full Book</h2>
+      <div class="card scroll"><table><thead><tr><th>Price (Pts)</th><th>Size (Contracts)</th><th class="l">Who</th></tr></thead><tbody id="bids"></tbody></table></div></div>
+    <div><h2 class="sec">8 Trade Tape With Names</h2>
+      <div class="card scroll"><table><thead><tr><th class="l">Session</th><th>Price (Pts)</th><th>Size (Contracts)</th><th class="l">Buyer</th><th class="l">Seller</th></tr></thead><tbody id="tape"></tbody></table></div></div>
+  </div>
+</div>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=t=>String(t).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const f2=n=>n==null?"None Yet":n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const usd=n=>(Math.round(n)<0?"−":"")+Math.abs(Math.round(n)).toLocaleString("en-US");
+const sg=n=>(n>0?"+":n<0?"−":"")+Math.abs(n);
+const cls=n=>Math.round(n)>0?"up":Math.round(n)<0?"dn":"";
+const hdr=()=>({"Content-Type":"application/json","X-Admin-Key":sessionStorage.getItem("key")||""});
+const post=body=>fetch("/api/admin",{method:"POST",headers:hdr(),body:JSON.stringify(body)}).then(r=>r.json());
+let M=null,dirty=false,lastSetup="";
+const KEYS=["days","seconds","capital","contractValue","margin","limit"];
+KEYS.forEach(k=>$("s_"+k).oninput=()=>{dirty=true;note()});
+$("apply").onclick=()=>{const values={};KEYS.forEach(k=>values[k]=Number($("s_"+k).value));
+  post({action:"setup",values}).then(r=>{$("setupmsg").textContent=r.ok?"Setup applied. A fresh game is ready; members keep their seats.":r.msg;
+    $("setupmsg").style.color=r.ok?"var(--up)":"var(--dn)";if(r.ok)dirty=false;poll()})};
+function note(){
+  const v=k=>Number($("s_"+k).value)||0,sessions=v("days")*2,mins=sessions*v("seconds")/60,per=v("contractValue")/5000;
+  const swing=per*25*v("limit"),cap=v("capital");
+  $("setupnote").textContent=`Game length: ${sessions} sessions × ${v("seconds")} seconds = ${mins.toFixed(1)} minutes. `
+    +`One contract moves USD ${per.toLocaleString("en-US",{maximumFractionDigits:2})} a point. `
+    +`A full position of ${v("limit")} gains or loses about USD ${Math.round(swing).toLocaleString("en-US")} on a 25-point shock`
+    +(cap>0?` (${(swing/cap*100).toFixed(2)}% of capital).`:".")
+    +(v("margin")>0?` Capital covers ${Math.floor(cap/v("margin")).toLocaleString("en-US")} contracts of margin.`:" No margin: only the position limit applies.");
+}
+$("hold").innerHTML=[...Array(11)].map((_,i)=>`<option value="${i}">${i}</option>`).join("");
+document.querySelectorAll("[data-act]").forEach(b=>b.onclick=()=>{
+  const a=b.dataset.act;
+  if(a==="reset"&&!confirm("Start A New Game? All Positions And Profit Are Cleared. Members Keep Their Seats."))return;
+  if(a==="free"&&!confirm("Remove Everyone? All Members Must Sign Up Again."))return;
+  post({action:a}).then(r=>{$("amsg").textContent=r.ok?`Done: ${b.textContent}.`:r.msg;poll()})});
+$("hold").onchange=()=>post({action:"holders",value:+$("hold").value}).then(()=>{$("amsg").textContent=`Done: ${$("hold").value} clue holders from the next session.`;poll()});
+$("acc").onclick=e=>{const s=e.target.dataset.kick;if(s!=null&&confirm(`Remove ${e.target.dataset.name}? Their Orders Are Cancelled.`))post({action:"kick",seat:+s}).then(poll)};
+$("unlock").onclick=()=>{sessionStorage.setItem("key",$("key").value);$("key").value="";poll()};
+
+function render(m){
+  M=m;const over=m.status==="settled";
+  const st={waiting:"Sign-Up Open, Not Started",open:"Open",paused:"Paused",settled:"Settled"}[m.status];
+  $("bstart").textContent=m.status==="paused"?"Resume Game":"Start Game";
+  if(document.activeElement!==$("hold"))$("hold").value=String(m.settings.holders);
+  const locked=m.status!=="waiting",sig=JSON.stringify(KEYS.map(k=>m.settings[k]));
+  if(!dirty||sig!==lastSetup){KEYS.forEach(k=>$("s_"+k).value=m.settings[k]);dirty=false;lastSetup=sig;note()}
+  KEYS.forEach(k=>{const e=$("s_"+k);e.disabled=locked;e.min=m.settings.limits[k][0];e.max=m.settings.limits[k][1]});
+  $("apply").disabled=locked;$("apply").style.opacity=locked?.45:1;
+  if(locked)$("setupmsg").textContent="Setup is locked while a game is on. Press New Game to change it. Clue holders can change at any time.";
+  else if($("setupmsg").textContent.startsWith("Setup is locked"))$("setupmsg").textContent="";
+  if(locked)$("setupmsg").style.color="var(--sub)";
+  $("stats").innerHTML=`
+    <div class="stat"><span>Status</span><b>${st}</b><i>${over?"Game finished":`Day ${m.day} of ${m.days}, ${m.session}`}</i></div>
+    <div class="stat"><span>${over?"Clock":m.newsOut?"Session Ends In":"News In"}</span><b>${over?"Done":Math.ceil(m.newsOut?m.secondsLeft:m.newsIn)+" Seconds"}</b><i>${m.settings.seconds} seconds a session, news at the midpoint</i></div>
+    <div class="stat"><span>Members Signed Up</span><b>${m.people}</b><i>${m.joinUrl?"Join at "+m.joinUrl:"Only this computer can join; restart with --lan"}</i></div>
+    <div class="stat"><span>Last Futures Trade (Pts)</span><b>${f2(m.last)}</b><i>Fair ${f2(m.fair)}, spot ${f2(m.spot)}</i></div>
+    <div class="stat"><span>Volume (Contracts)</span><b>${m.volume.toLocaleString("en-US")}</b><i>House fees USD ${usd(m.feesUsd)}</i></div>
+    <div class="stat"><span>Zero-Sum Check (USD)</span><b class="${Math.abs(m.sumPnl)<0.5&&m.sumPos===0?"up":"dn"}">${usd(m.sumPnl)}</b><i>Members plus house; positions sum to ${m.sumPos}</i></div>`;
+
+  const rows=m.accounts.slice().sort((a,b)=>(a.name==="House")-(b.name==="House")||b.pnl-a.pnl);
+  let rank=0;
+  $("acc").innerHTML=rows.map(r=>{const house=r.name==="House";if(!house)rank++;
+    return `<tr class="${r.clueNow?"now":""}"><td>${house?"":rank}</td><td class="l">${esc(r.name)}${r.clueNow?'<span class="tag">Clue Now</span>':""}</td>
+    <td class="${cls(r.pos)}">${sg(r.pos)}</td><td>${r.pos?f2(r.avg):""}</td><td>${r.openBuy} / ${r.openSell}</td>
+    <td class="${cls(r.realised)}">${usd(r.realised)}</td><td class="${cls(r.unrealised)}">${usd(r.unrealised)}</td><td>${house?"":usd(r.fees)}</td>
+    <td class="${cls(r.pnl)}">${usd(r.pnl)}</td><td>${house?"":usd(r.equity)}</td><td>${house?"":r.clues}</td>
+    <td>${!house&&r.here?`<button class="small" data-kick="${r.seat}" data-name="${esc(r.name)}">Remove</button>`:""}</td></tr>`}).join("")
+    +`<tr class="tot"><td></td><td class="l">Total</td><td>${sg(m.sumPos)}</td><td colspan="5"></td><td>${usd(m.sumPnl)}</td><td colspan="3"></td></tr>`;
+  $("accnote").textContent=`Marked at ${f2(m.mark)} points. One contract is worth about USD ${m.settings.contractValue.toLocaleString("en-US")} (USD ${m.settings.mult} a point); limit ${m.settings.limit} contracts; capital USD ${m.settings.capital.toLocaleString("en-US")}; margin USD ${m.settings.margin.toLocaleString("en-US")} a contract. The house result is fees plus its position.`;
+
+  $("sched").innerHTML=m.schedule.map(x=>`<tr class="${x.state==="This Session"?"now":""}"><td class="l">Day ${x.day} ${x.session.split(" ")[0]}</td><td class="${cls(x.shock)}">${sg(+x.shock.toFixed(1))}</td><td class="l">${x.state}</td><td class="l" style="white-space:normal">${x.holders.length?x.holders.map(esc).join(", "):x.state==="Later"?"Drawn When The Session Starts":"No One"}</td></tr>`).join("");
+  $("schednote").textContent=`The spot index will end at ${f2(m.finalSpot)} points. That is the final settlement price. Holders are drawn at random each session, members with the fewest clues first.`;
+
+  const failed=m.checks.filter(c=>!c.ok).length;
+  $("checks").innerHTML=m.checks.slice().reverse().map(c=>`<tr><td class="l">${c.label}</td><td class="${cls(c.members)}">${usd(c.members)}</td><td class="${cls(c.house)}">${usd(c.house)}</td><td>${usd(c.total)}</td><td>${c.positions}</td><td class="l ${c.ok?"up":"dn"}">${c.ok?"Pass":"Fail"}</td></tr>`).join("")
+    ||`<tr><td colspan="6" class="l mut">The first check runs when the first session ends.</td></tr>`;
+  if(failed)$("amsg").textContent=`Warning: ${failed} session check${failed===1?"":"s"} failed. See section 5.`;
+  const lv=o=>`<tr><td>${f2(o.p)}</td><td>${o.q}</td><td class="l">${esc(o.who)}</td></tr>`;
+  $("asks").innerHTML=m.book.asks.map(lv).join("")||`<tr><td colspan="3" class="l mut">No Offers.</td></tr>`;
+  $("bids").innerHTML=m.book.bids.map(lv).join("")||`<tr><td colspan="3" class="l mut">No Bids.</td></tr>`;
+  $("tape").innerHTML=m.tape.map(t=>`<tr><td class="l">Day ${Math.ceil(t.r/2)} ${t.r%2?"Cash":"Night"}</td><td>${f2(t.p)}</td><td>${t.q}</td><td class="l">${esc(t.buyer)}${t.taker===t.buyer?" (Took)":""}</td><td class="l">${esc(t.seller)}${t.taker===t.seller?" (Took)":""}</td></tr>`).join("")
+    ||`<tr><td colspan="5" class="l mut">No Trades Yet.</td></tr>`;
+}
+async function poll(){
+  try{
+    const r=await fetch("/api/monitor",{headers:hdr()});
+    $("locked").classList.toggle("hide",r.ok);$("desk").classList.toggle("hide",!r.ok);
+    if(r.ok)render(await r.json());
+  }catch(e){}
+}
+poll();setInterval(poll,1000);
+</script>
+</body>
+</html>

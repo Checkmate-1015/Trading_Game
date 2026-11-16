@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Futures Trading Game</title>
+<style>
+:root{--mast:#073B3A;--mast-t:#F4EDDF;--mast-s:#BAD0CA;--bg:#FAF7F0;--card:#FFFDF8;--band:#F1ECE0;
+--rule:#E5DDCD;--rule2:#D4C9B2;--teal:#00857C;--text:#11302E;--sub:#586660;--up:#1B7A5A;--dn:#B0432D;--gold:#A07A2C}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:400 14px/1.45 "Avenir Next",system-ui,sans-serif}
+.mast{background:var(--mast);padding:18px 28px;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.mast h1{font:400 26px Optima,serif;color:var(--mast-t);margin:0}
+.mast p{margin:2px 0 0;color:var(--mast-s);font-size:13px}
+.mast .right{margin-left:auto;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.mast .who{color:var(--mast-t);font-size:14px;white-space:nowrap}
+.mast a{color:var(--mast-s);font-weight:500;white-space:nowrap}
+select,input,button{font:500 14px "Avenir Next",system-ui,sans-serif;color:var(--text)}
+input{background:var(--card);border:1px solid var(--rule2);border-radius:6px;padding:7px 9px;width:100%}
+button{background:var(--band);border:1px solid var(--rule2);border-radius:6px;padding:7px 13px;cursor:pointer;white-space:nowrap}
+button:hover{border-color:var(--teal)}
+button.buy{background:var(--up);border-color:var(--up);color:#fff}
+button.sell{background:var(--dn);border-color:var(--dn);color:#fff}
+button:disabled{opacity:.45;cursor:not-allowed}
+.strip{display:flex;gap:26px;padding:12px 28px;background:var(--band);border-bottom:1px solid var(--rule);flex-wrap:wrap;align-items:center}
+.strip div{white-space:nowrap}.strip b{font:400 17px Optima,serif;margin-left:6px}
+main{padding:22px 28px 40px;max-width:1500px;margin:0 auto}
+.grid{display:grid;grid-template-columns:1.05fr 1fr 1.05fr;gap:18px;align-items:start}
+@media(max-width:1050px){.grid{grid-template-columns:1fr}}
+.sec{font:400 16px Optima,serif;color:var(--teal);margin:0 0 8px}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:16px;margin-bottom:18px}
+.kv{display:grid;grid-template-columns:1fr auto;gap:5px 14px}
+.kv span{color:var(--sub)}.kv b{font:400 16px Optima,serif;text-align:right;white-space:nowrap}
+.big{font:400 30px Optima,serif}
+table{width:100%;border-collapse:collapse}
+th{font-weight:500;font-size:13px;color:var(--sub);text-align:right;padding:5px 6px;border-bottom:1px solid var(--teal);white-space:nowrap}
+td{padding:4px 6px;text-align:right;border-bottom:1px solid var(--rule);font-family:Optima,serif;font-size:15px;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+td.l,th.l{text-align:left;font-family:"Avenir Next",system-ui,sans-serif;font-size:13px}
+.up{color:var(--up)}.dn{color:var(--dn)}.mut{color:var(--sub);font-size:13px}
+tr.ask td:first-child{color:var(--dn)}tr.bid td:first-child{color:var(--up)}
+tr.px{cursor:pointer}tr.px:hover td{background:var(--band)}
+tr.me td{background:var(--band)}
+.mid td{background:var(--band);text-align:center;font-family:"Avenir Next",system-ui,sans-serif;font-size:13px;color:var(--sub)}
+.tag{font:500 12px "Avenir Next",system-ui,sans-serif;padding:1px 7px;border-radius:9px;background:var(--band);color:var(--sub);margin-left:4px}
+.tag.you{background:var(--teal);color:#fff}.tag.house{background:var(--gold);color:#fff}
+.row{display:grid;grid-template-columns:1fr 1fr auto auto;gap:8px;align-items:end;margin-top:12px}
+.row label{font-size:12px;color:var(--sub);display:block;margin-bottom:3px}
+.msg{min-height:20px;margin-top:8px;font-size:13px;color:var(--sub)}
+.meter{position:relative;height:14px;background:var(--band);border-radius:7px;margin:8px 0 2px}
+.meter i{position:absolute;top:0;bottom:0;border-radius:7px}
+.meter u{position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--text)}
+.scale{display:flex;justify-content:space-between;font-size:12px;color:var(--sub)}
+.clue{background:var(--band);border-radius:8px;padding:11px 13px;margin-bottom:12px}
+.clue.live{background:var(--mast);color:var(--mast-t)}.clue.live .mut{color:var(--mast-s)}
+.scroll{max-height:250px;overflow:auto}
+summary{cursor:pointer;color:var(--teal);font-weight:500}
+details li{margin:4px 0}
+.banner{background:var(--mast);color:var(--mast-t);border-radius:10px;padding:14px 18px;margin-bottom:18px;font:400 18px Optima,serif}
+.joinbox{max-width:520px;margin:40px auto}
+.pop{position:fixed;inset:0;background:rgba(7,59,58,.55);display:flex;align-items:center;justify-content:center;z-index:9;padding:20px}
+.pop div{background:var(--card);border-radius:14px;padding:28px 34px;max-width:440px;text-align:center;border:1px solid var(--rule2)}
+.pop h3{font:400 18px Optima,serif;color:var(--teal);margin:0 0 6px}
+.pop b{display:block;font:400 54px Optima,serif;line-height:1.1;margin:6px 0}
+.pop p{color:var(--sub);margin:8px 0 16px}
+.hide{display:none!important}
+footer{color:var(--sub);font-size:12px;padding:0 28px 26px;max-width:1500px;margin:0 auto}
+</style>
+</head>
+<body>
+<div class="mast">
+  <div><h1>Traders@UST Futures Trading Game</h1>
+  <p>Index future, cash-settled at the final spot index. Every level is a game parameter, not market data.</p></div>
+  <div class="right">
+    <a id="lmon" class="hide" href="/monitor" target="_blank">Monitor</a>
+    <a id="lover" class="hide" href="/overview" target="_blank">Projector View</a>
+    <span class="who" id="who"></span>
+    <button id="leave" class="hide">Leave Game</button>
+  </div>
+</div>
+<div class="strip hide" id="stripwrap"><div id="strip" style="display:contents"></div><button id="go" class="buy hide" style="margin-left:auto"></button></div>
+
+<div id="pop" class="pop hide"><div>
+  <h3>Private Clue, Only On Your Screen</h3>
+  <b id="popval"></b>
+  <p id="poptext"></p>
+  <button class="buy" id="popok">Got It</button>
+</div></div>
+
+<main>
+  <div id="join" class="joinbox hide">
+    <h2 class="sec">Sign Up</h2>
+    <div class="card">
+      <div class="row" style="grid-template-columns:1fr auto;margin-top:0">
+        <div><label for="nm">Your Name (Must Be Unique)</label><input id="nm" maxlength="20" autocomplete="off"></div>
+        <button class="buy" id="joinbtn">Sign Up</button>
+      </div>
+      <div class="msg" id="jmsg"></div>
+    </div>
+  </div>
+
+  <div id="play" class="hide">
+  <div id="banner" class="banner hide"></div>
+  <div class="grid">
+    <div>
+      <h2 class="sec">1 The Market</h2>
+      <div class="card">
+        <div class="kv" id="mkt"></div>
+        <svg id="chart" viewBox="0 0 600 230" style="width:100%;margin-top:12px"></svg>
+        <div class="mut">Spot index and last futures trade, in index points, over the game so far.</div>
+      </div>
+      <div class="card">
+        <div class="sec" style="font-size:15px">Fair Value Check (Index Points)</div>
+        <div class="kv" id="arb"></div>
+        <div class="msg" id="arbmsg"></div>
+      </div>
+    </div>
+
+    <div>
+      <h2 class="sec">2 Trade The Future</h2>
+      <div class="card">
+        <div class="row" style="margin-top:0">
+          <div><label for="px">Limit Price (Pts)</label><input id="px" type="text" inputmode="decimal"></div>
+          <div><label for="qty">Quantity (Contracts)</label><input id="qty" type="number" min="1" max="20" value="1"></div>
+          <button class="buy" id="buy">Buy</button><button class="sell" id="sell">Sell</button>
+        </div>
+        <div class="row" style="grid-template-columns:1fr 1fr">
+          <button id="lift">Buy At Best Offer</button><button id="hit">Sell At Best Bid</button>
+        </div>
+        <div class="msg" id="msg">Click a price in the book to copy it into the ticket.</div>
+        <table style="margin-top:6px"><thead><tr><th>Price (Pts)</th><th>Size (Contracts)</th><th class="l">Who</th></tr></thead><tbody id="book"></tbody></table>
+        <div class="mut" style="margin-top:8px">Best five prices each side. Offers above the spread, bids below.</div>
+      </div>
+      <div class="card">
+        <div class="sec" style="font-size:15px">Your Resting Orders</div>
+        <table><thead><tr><th>Side</th><th>Price (Pts)</th><th>Size (Contracts)</th><th></th></tr></thead><tbody id="orders"></tbody></table>
+      </div>
+    </div>
+
+    <div>
+      <h2 class="sec">3 Your Account</h2>
+      <div class="card">
+        <div class="clue" id="clue"></div>
+        <div class="mut">Account Equity, Capital Plus Profit Or Loss (USD)</div>
+        <div class="big" id="eq"></div>
+        <div class="kv" id="eqparts" style="margin:8px 0 14px"></div>
+        <div class="mut" id="poshead"></div>
+        <div class="meter"><i id="bar"></i><u></u></div>
+        <div class="scale" id="scale"></div>
+        <div class="sec" style="font-size:15px;margin-top:16px">Buying Power</div>
+        <div class="kv" id="room"></div>
+        <div class="msg" id="mcall"></div>
+      </div>
+      <h2 class="sec">4 Top Five, Live</h2>
+      <div class="card">
+        <table><thead><tr><th>Rank</th><th class="l">Name</th><th>Profit Or Loss (USD)</th></tr></thead><tbody id="top5"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <div id="finalwrap" class="hide">
+    <h2 class="sec">Final Standings</h2>
+    <div class="card"><table><thead><tr><th>Rank</th><th class="l">Name</th><th>Final Position (Contracts)</th><th>Clues Received</th><th>Profit Or Loss (USD)</th></tr></thead><tbody id="final"></tbody></table></div>
+  </div>
+
+  <div class="grid">
+    <div><h2 class="sec">5 Daily Settlement (Mark To Market)</h2>
+      <div class="card scroll"><table><thead><tr><th>Day</th><th>Settlement Price (Pts)</th><th>Change (USD)</th><th>Running Total (USD)</th></tr></thead><tbody id="mtm"></tbody></table></div></div>
+    <div><h2 class="sec">6 Trade Tape</h2>
+      <div class="card scroll"><table><thead><tr><th>Session</th><th>Price (Pts)</th><th>Size (Contracts)</th><th class="l">Note</th></tr></thead><tbody id="tape"></tbody></table></div></div>
+    <div><h2 class="sec">7 News Released</h2>
+      <div class="card scroll"><table><thead><tr><th>When</th><th>Shock (Pts)</th><th>Spot After (Pts)</th></tr></thead><tbody id="news"></tbody></table></div></div>
+  </div>
+  <div class="card"><details><summary>How The Game Works</summary><ul id="rules"></ul></details></div>
+  </div>
+</main>
+<footer>Source: Traders@UST game server. Every level is a game parameter, not market data.</footer>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=t=>String(t).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const f2=n=>n==null?"None Yet":n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const usd=n=>(Math.round(n)<0?"−":"")+Math.abs(Math.round(n)).toLocaleString("en-US");
+const sg=n=>(n>0?"+":n<0?"−":"")+Math.abs(n);
+const cls=n=>Math.round(n)>0?"up":Math.round(n)<0?"dn":"";
+const num=v=>parseFloat(String(v).trim().replace(",","."));
+const say=(id,r)=>{$(id).textContent=r.msg;$(id).style.color=r.ok?"var(--sub)":"var(--dn)"};
+let S=null,jmsgErr=false;
+let token=localStorage.getItem("token");
+if(!token){token=Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem("token",token)}
+const post=(path,body)=>fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token,...body})}).then(r=>r.json());
+
+$("joinbtn").onclick=()=>post("/api/join",{name:$("nm").value}).then(r=>{jmsgErr=!r.ok;say("jmsg",r);poll()});
+$("nm").onkeydown=e=>{if(e.key==="Enter")$("joinbtn").click()};
+$("leave").onclick=()=>{if(confirm("Leave The Game? Your Orders Are Cancelled And You Cannot Take This Account Back."))post("/api/leave",{}).then(poll)};
+$("go").onclick=()=>post("/api/admin",{action:S.status==="settled"?"reset":"start"}).then(poll);
+$("popok").onclick=()=>$("pop").classList.add("hide");
+async function act(body){
+  const r=await post("/api/order",body);
+  if(!r.ok&&S.status!=="open"&&S.status!=="settled")r.msg+=" Wait For The Game Master To Start.";
+  say("msg",r);poll();
+}
+const send=(side,price)=>{const p=price??num($("px").value),q=parseInt($("qty").value);
+  if(!(p>0)||!(q>0))return say("msg",{ok:false,msg:"Enter A Price And A Quantity."});
+  act({side,price:p,qty:q})};
+$("buy").onclick=()=>send("B");$("sell").onclick=()=>send("S");
+$("lift").onclick=()=>{const a=S.book.asks[0];a?send("B",a.p):say("msg",{ok:false,msg:"No Offer In The Book."})};
+$("hit").onclick=()=>{const b=S.book.bids[0];b?send("S",b.p):say("msg",{ok:false,msg:"No Bid In The Book."})};
+$("book").onclick=e=>{const tr=e.target.closest("tr.px");if(tr)$("px").value=tr.dataset.p};
+$("orders").onclick=e=>{if(e.target.dataset.id)post("/api/cancel",{id:+e.target.dataset.id}).then(poll)};
+
+function chart(h){
+  const W=600,H=230,L=58,R=10,T=22,B=26,vals=h.flatMap(p=>[p[0],p[1]]).filter(v=>v!=null);
+  let lo=Math.min(...vals),hi=Math.max(...vals);if(hi-lo<20){const m=(hi+lo)/2;lo=m-10;hi=m+10}
+  const pad=(hi-lo)*.08;lo-=pad;hi+=pad;
+  const x=i=>L+(W-L-R)*(h.length<2?0:i/(h.length-1)),y=v=>T+(H-T-B)*(1-(v-lo)/(hi-lo));
+  const line=k=>h.map((p,i)=>p[k]==null?null:x(i).toFixed(1)+","+y(p[k]).toFixed(1)).filter(Boolean).join(" ");
+  let g="";for(let i=0;i<4;i++){const v=lo+(hi-lo)*i/3;
+    g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#E5DDCD"/><text x="${L-8}" y="${y(v)+4}" text-anchor="end" font-size="12" fill="#586660">${Math.round(v).toLocaleString("en-US")}</text>`}
+  $("chart").innerHTML=g+`<polyline points="${line(0)}" fill="none" stroke="#A07A2C" stroke-width="2"/>
+  <polyline points="${line(1)}" fill="none" stroke="#00857C" stroke-width="2"/>
+  <text x="${L}" y="12" font-size="12" fill="#A07A2C">Spot Index (Pts)</text>
+  <text x="${L+120}" y="12" font-size="12" fill="#00857C">Last Futures Trade (Pts)</text>
+  <text x="${W-R}" y="${H-6}" text-anchor="end" font-size="12" fill="#586660">Time Since Start</text>`;
+}
+
+function render(s){
+  S=s;
+  $("join").classList.toggle("hide",s.joined);$("play").classList.toggle("hide",!s.joined);
+  $("stripwrap").classList.toggle("hide",!s.joined);$("leave").classList.toggle("hide",!s.joined);
+  $("lmon").classList.toggle("hide",!s.isAdmin);$("lover").classList.toggle("hide",!s.isAdmin);
+  if(!s.joined){
+    $("who").textContent="";
+    if(!jmsgErr)say("jmsg",{ok:true,msg:`${s.people} ${s.people===1?"person has":"people have"} signed up. ${s.status==="waiting"?"Trading starts when the game master opens the market.":"The game is under way; you can still join."}`});
+    return;
+  }
+  const m=s.me,p=s.params,over=s.status==="settled",ln=s.news[s.news.length-1];
+  $("who").textContent=`${s.name}, Trader ${m.seat+1}`;
+  const st={waiting:"Waiting To Start",open:"Open",paused:"Paused",settled:"Settled"}[s.status];
+  $("strip").innerHTML=`<div>Status<b>${st}</b></div><div>Day<b>${s.day} Of ${s.days}</b></div>
+    <div>Session<b>${over?"Finished":s.session+(s.cashOpen?"":", Cash Market Closed")}</b></div>
+    <div>${s.newsOut?"Session Ends In":"News In"}<b>${over?"Done":Math.ceil(s.newsOut?s.secondsLeft:s.newsIn)+" Seconds"}</b></div>
+    <div>Volume<b>${s.volume.toLocaleString("en-US")} Contracts</b></div>
+    <div>Latest News<b>${ln?`Day ${ln.day} ${ln.session.split(" ")[0]} ${sg(+ln.shock.toFixed(1))} Pts`:"None Yet"}</b></div>`;
+  $("go").textContent={waiting:"Start Game",paused:"Resume Game",settled:"New Game"}[s.status]||"";
+  $("go").classList.toggle("hide",s.status==="open"||!s.isAdmin);
+  ["buy","sell","lift","hit"].forEach(id=>$(id).disabled=s.status!=="open");
+  if(!$("px").value&&document.activeElement!==$("px"))$("px").value=(Math.round(s.fair*4)/4).toFixed(2);
+  $("banner").classList.toggle("hide",s.status==="open");
+  $("banner").textContent=over?`Settled At ${f2(s.settle)} Points. Your Final Profit Or Loss: USD ${usd(m.pnl)}.`
+    :s.status==="waiting"?`You are signed up as Trader ${m.seat+1}. ${s.people} ${s.people===1?"person is":"people are"} in. Trading starts when the game master opens the market.`
+    :"The game is paused by the game master.";
+
+  const basis=s.last==null?null:s.last-s.spot;
+  $("mkt").innerHTML=`<span>Spot Index, ${s.cashOpen?"Live":over?"Final":"Last Close"} (Pts)</span><b>${f2(s.spot)}</b>
+    ${s.cashOpen||over?"":`<span>Indicated Open, Close Plus Overnight News (Pts)</span><b>${f2(s.indicatedOpen)}</b>`}
+    <span>Cost Of Carry To Expiry (Pts)</span><b>${f2(s.carryLeft)}</b>
+    <span>Fair Futures, Spot Plus Carry (Pts)</span><b>${f2(s.fair)}</b>
+    <span>Last Futures Trade (Pts)</span><b>${f2(s.last)}</b>
+    <span>Basis, Futures Less Spot (Pts)</span><b>${basis==null?"None Yet":f2(basis)}</b>`;
+  chart(s.hist);
+
+  const bb=s.book.bids[0],ba=s.book.asks[0],prem=s.last==null?null:s.last-s.fair;
+  $("arb").innerHTML=`<span>Fair Futures</span><b>${f2(s.fair)}</b>
+    <span>House Bid And Offer, Fair ± ${(p.fee*100).toFixed(2)}%</span><b>${f2(s.fair*(1-p.fee))} To ${f2(s.fair*(1+p.fee))}</b>
+    <span>Last Trade Less Fair Futures</span><b>${prem==null?"None Yet":sg(+prem.toFixed(2))}</b>
+    <span>Best Bid And Offer</span><b>${bb?f2(bb.p):"None"} And ${ba?f2(ba.p):"None"}</b>`;
+  $("arbmsg").textContent=over?"":s.cashOpen
+    ?"Cash session: the index is live. Fair futures uses public news only. A member with a clue knows more."
+    :"Overnight: the index is frozen at its close, so the future alone prices the news. Watch the indicated open.";
+
+  const row=(l,c)=>`<tr class="px ${c}" data-p="${l.p}"><td>${f2(l.p)}</td><td>${l.q}</td><td class="l">${l.house?'<span class="tag house">House</span>':""}${l.you?`<span class="tag you">You ${l.you}</span>`:""}</td></tr>`;
+  $("book").innerHTML=s.book.asks.slice().reverse().map(l=>row(l,"ask")).join("")
+    +`<tr class="mid"><td colspan="3">${bb&&ba?"Spread "+f2(ba.p-bb.p)+" Points":"Offers Above, Bids Below"}</td></tr>`
+    +s.book.bids.map(l=>row(l,"bid")).join("");
+  $("orders").innerHTML=m.orders.map(o=>`<tr><td class="${o.side==="Buy"?"up":"dn"}">${o.side}</td><td>${f2(o.p)}</td><td>${o.q}</td><td><button data-id="${o.id}">Cancel</button></td></tr>`).join("")
+    ||`<tr><td colspan="4" class="l mut">No Resting Orders.</td></tr>`;
+
+  // private clue: a pop-up the moment it arrives, then it stays in the account panel
+  const c=m.clue,live=c&&!c.public,others=c?c.holders-1:0;
+  const shared=c?(others>0?`${others} other ${others===1?"member has":"members have"} it too.`:"No one else has it."):"";
+  $("clue").className="clue"+(live?" live":"");
+  $("clue").innerHTML=live?`<b>Your Private Clue: ${sg(+c.value.toFixed(1))} Points.</b><br><span class="mut">This session's news, before it is public. It goes public in ${Math.ceil(s.newsIn)} seconds. ${shared} Your own fair futures value is ${f2(m.myFair)} points.</span>`
+    :c?`<b>Your Clue Is Now Public.</b><br><span class="mut">The shock of ${sg(+c.value.toFixed(1))} points is in fair value for everyone.</span>`
+    :`<b>No Private Clue This Session.</b><br><span class="mut">Each session ${p.clueHolders} members are drawn at random to see the news early. Clues you have had so far: ${m.cluesSoFar}.</span>`;
+  const key=`${s.gameId}-${c?c.id:"x"}`;
+  if(live&&s.status==="open"&&sessionStorage.getItem("clueSeen")!==key){
+    sessionStorage.setItem("clueSeen",key);
+    $("popval").textContent=`${sg(+c.value.toFixed(1))} Points`;$("popval").className=c.value>=0?"up":"dn";
+    $("poptext").textContent=`This session's news will move ${s.cashOpen?"the index":"the future"} by this much. It goes public in about ${Math.ceil(s.newsIn)} seconds. ${shared}`;
+    $("pop").classList.remove("hide");
+  }
+  if(!live)$("pop").classList.add("hide");
+
+  $("eq").textContent=usd(m.equity);$("eq").className="big "+cls(m.pnl);
+  $("eqparts").innerHTML=`<span>Starting Capital (USD)</span><b>${usd(m.capital)}</b>
+    <span>Realised Profit Or Loss, Closed Trades (USD)</span><b class="${cls(m.realisedUsd)}">${usd(m.realisedUsd)}</b>
+    <span>Unrealised Profit Or Loss, Open Position (USD)</span><b class="${cls(m.unrealisedUsd)}">${usd(m.unrealisedUsd)}</b>
+    <span>Fees Paid (USD)</span><b>${usd(-m.feesUsd)}</b>
+    <span>Profit Or Loss So Far (USD)</span><b class="${cls(m.pnl)}">${usd(m.pnl)}</b>`;
+  $("poshead").textContent=m.pos===0?"Position: None Open (Contracts)"
+    :`Position: ${m.pos>0?"Long":"Short"} ${Math.abs(m.pos)} At Average ${f2(m.avg)}, Marked At ${f2(m.mark)} (Pts)`;
+  const w=Math.abs(m.pos)/p.limit*50;
+  $("bar").style.cssText=`width:${w}%;left:${m.pos>=0?50:50-w}%;background:${m.pos>=0?"var(--up)":"var(--dn)"}`;
+  $("scale").innerHTML=`<span>Short ${p.limit}</span><span>Now ${sg(m.pos)}</span><span>Long ${p.limit}</span>`;
+  $("room").innerHTML=`<span>Margin In Use, ${Math.abs(m.pos)} × USD ${p.marginPer.toLocaleString("en-US")} (USD)</span><b>${usd(m.marginUsed)}</b>
+    <span>Free Capital, Equity Less Margin (USD)</span><b class="${cls(m.freeCapital)}">${usd(m.freeCapital)}</b>
+    <span>You Can Still Buy (Contracts)</span><b>${m.roomBuy}</b>
+    <span>You Can Still Sell (Contracts)</span><b>${m.roomSell}</b>`;
+  $("mcall").textContent=m.marginCall?"Margin call: your equity is below the margin on your position. You can only reduce the position."
+    :m.effLimit<p.limit?`Your capital now supports ${m.effLimit} contracts, below the position limit of ${p.limit}.`
+    :`One contract is worth about USD ${p.contractValue.toLocaleString("en-US")} and moves USD ${p.mult} a point. Resting orders count toward the limit of ${p.limit}.`;
+  $("mcall").style.color=m.marginCall?"var(--dn)":"var(--sub)";
+  $("top5").innerHTML=s.top5.map((r,i)=>`<tr class="${r.you?"me":""}"><td>${i+1}</td><td class="l">${esc(r.name)}${r.you?'<span class="tag you">You</span>':""}</td><td class="${cls(r.pnl)}">${usd(r.pnl)}</td></tr>`).join("");
+
+  $("finalwrap").classList.toggle("hide",!s.board);
+  if(s.board)$("final").innerHTML=s.board.slice().sort((a,b)=>b.pnl-a.pnl).map((r,i)=>`<tr class="${r.seat===m.seat?"me":""}"><td>${i+1}</td><td class="l">${esc(r.name)}</td><td>${sg(r.pos)}</td><td>${r.name==="House"?"":r.clues}</td><td class="${cls(r.pnl)}">${usd(r.pnl)}</td></tr>`).join("")
+    +`<tr><td>Total</td><td class="l">Members Plus The House</td><td>${sg(s.sumPos)}</td><td></td><td>${usd(s.sumPnl)}</td></tr>`;
+
+  let prev=0;
+  $("mtm").innerHTML=m.mtm.map(r=>{const d=r.eq-prev;prev=r.eq;return `<tr><td>${r.r}</td><td>${f2(r.px)}</td><td class="${cls(d)}">${usd(d)}</td><td class="${cls(r.eq)}">${usd(r.eq)}</td></tr>`}).reverse().join("")
+    ||`<tr><td colspan="4" class="l mut">The first daily settlement is at the Day 1 cash close.</td></tr>`;
+  $("tape").innerHTML=s.tape.map(t=>`<tr><td>Day ${Math.ceil(t.r/2)} ${t.r%2?"Cash":"Night"}</td><td>${f2(t.p)}</td><td>${t.q}</td><td class="l">${t.you?`<span class="tag you">You ${t.you}</span>`:""}${t.house?'<span class="tag house">House</span>':""}</td></tr>`).join("")
+    ||`<tr><td colspan="4" class="l mut">No Trades Yet.</td></tr>`;
+  $("news").innerHTML=s.news.slice().reverse().map(n=>`<tr><td>Day ${n.day} ${n.session.split(" ")[0]}</td><td class="${cls(n.shock)}">${sg(+n.shock.toFixed(1))}</td><td>${n.spot==null?"Gaps At Open":f2(n.spot)}</td></tr>`).join("")
+    ||`<tr><td colspan="3" class="l mut">No News Yet.</td></tr>`;
+
+  if(!$("rules").innerHTML)$("rules").innerHTML=[
+    `Everyone trades one futures contract on the index with each other. There are no bots. One contract is worth about USD ${p.contractValue.toLocaleString("en-US")} and gains or loses USD ${p.mult} for every index point.`,
+    `You start with USD ${p.capital.toLocaleString("en-US")} of capital. Each contract you hold ties up USD ${p.marginPer.toLocaleString("en-US")} of it as margin.`,
+    `Position limit: ${p.limit} contracts, long or short. Your resting orders count toward it.`,
+    `The game is ${s.days} trading days. Each day has a cash session (the stock market is open, like 09:30 to 16:00 New York time) and an overnight session (the stock market is closed).`,
+    `The spot index is the reference price. It prints only in the cash session and is frozen overnight. The future trades in both sessions.`,
+    `One news shock goes public midway through every session. Cash-session news moves the index at once. Overnight news moves only the future; the index gaps to it at the next open.`,
+    `Private clue: at the start of each session ${p.clueHolders} members, drawn at random, see that session's shock before it is public. It pops up on their screen only. Members who have had fewer clues are drawn first.`,
+    `Fair futures = spot + overnight news not yet in spot + cost of carry to expiry. It uses public news only.`,
+    `Trades happen in a limit order book: when a bid meets an offer, at the resting order's price. Each trade has its own price.`,
+    `The house market maker always quotes at fair value less and plus ${(p.fee*100).toFixed(2)}%, ${p.houseSize} contracts a side. It only posts quotes and never takes your order.`,
+    `Fees: USD ${p.futFeeUsd.toFixed(2)} a contract a side, paid to the house.`,
+    `Daily settlement: at each cash close every account is marked to market at the closing futures price.`,
+    `Final settlement is the opening index print after the last overnight session. Every open position is closed at that price.`
+  ].map(t=>`<li>${t}</li>`).join("");
+}
+const poll=()=>fetch(`/api/state?token=${token}`).then(r=>r.json()).then(render).catch(()=>{});
+poll();setInterval(poll,1000);
+</script>
+</body>
+</html>

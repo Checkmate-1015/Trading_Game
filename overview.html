@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Futures Trading Game: Market Overview</title>
+<style>
+:root{--mast:#073B3A;--mast-t:#F4EDDF;--mast-s:#BAD0CA;--bg:#FAF7F0;--card:#FFFDF8;--band:#F1ECE0;
+--rule:#E5DDCD;--rule2:#D4C9B2;--teal:#00857C;--text:#11302E;--sub:#586660;--up:#1B7A5A;--dn:#B0432D;--gold:#A07A2C}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:400 18px/1.4 "Avenir Next",system-ui,sans-serif;display:flex;flex-direction:column}
+.mast{background:var(--mast);padding:20px 36px;display:flex;align-items:center;gap:30px;flex-wrap:wrap}
+.mast h1{font:400 34px Optima,serif;color:var(--mast-t);margin:0}
+.mast p{margin:2px 0 0;color:var(--mast-s);font-size:17px}
+.clock{margin-left:auto;text-align:right;color:var(--mast-s);font-size:17px;white-space:nowrap}
+.clock b{display:block;font:400 44px Optima,serif;color:var(--mast-t);line-height:1.05}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;padding:22px 36px 0}
+.stat{background:var(--card);border:1px solid var(--rule);border-radius:12px;padding:16px 20px}
+.stat span{color:var(--sub);font-size:16px;white-space:nowrap}
+.stat b{display:block;font:400 46px Optima,serif;line-height:1.1;white-space:nowrap}
+.stat i{font-style:normal;color:var(--sub);font-size:15px;white-space:nowrap}
+.body{flex:1;display:grid;grid-template-columns:2.6fr 1fr;gap:18px;padding:18px 36px 14px;min-height:0}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:12px;padding:18px 20px;min-height:0;display:flex;flex-direction:column}
+.sec{font:400 22px Optima,serif;color:var(--teal);margin:0 0 8px}
+svg{width:100%;flex:1;min-height:0}
+.news{overflow:hidden;display:flex;flex-direction:column;gap:10px}
+.item{border-bottom:1px solid var(--rule);padding-bottom:10px}
+.item .when{color:var(--sub);font-size:16px}
+.item .move{font:400 34px Optima,serif;line-height:1.15}
+.item .note{color:var(--sub);font-size:16px}
+.item.new{background:var(--band);border-radius:8px;padding:10px 12px;border-bottom:0}
+.up{color:var(--up)}.dn{color:var(--dn)}
+footer{color:var(--sub);font-size:14px;padding:0 36px 14px}
+@media(max-width:1000px){.stats{grid-template-columns:repeat(2,1fr)}.body{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="mast">
+  <div><h1>Traders@UST Futures Trading Game</h1><p id="sub">Market overview</p></div>
+  <div class="clock"><span id="clocklabel">News In</span><b id="clock">–</b></div>
+</div>
+<div class="stats">
+  <div class="stat"><span>Last Futures Trade (Pts)</span><b id="last">–</b><i id="lastnote"></i></div>
+  <div class="stat"><span id="spotlabel">Spot Index (Pts)</span><b id="spot">–</b><i id="spotnote"></i></div>
+  <div class="stat"><span>Fair Futures (Pts)</span><b id="fair">–</b><i>Spot, plus overnight news, plus cost of carry</i></div>
+  <div class="stat"><span>Volume (Contracts)</span><b id="vol">–</b><i id="people"></i></div>
+</div>
+<div class="body">
+  <div class="card">
+    <h2 class="sec">Spot Index And Last Futures Trade (Index Points)</h2>
+    <svg id="chart" viewBox="0 0 1200 520" preserveAspectRatio="none"></svg>
+  </div>
+  <div class="card">
+    <h2 class="sec">Recent News</h2>
+    <div class="news" id="news"></div>
+  </div>
+</div>
+<footer>Shaded bands are overnight sessions: the cash market is closed and the spot index is frozen. Dashed lines mark news. Every level is a game parameter, not market data.</footer>
+
+<script>
+const $=id=>document.getElementById(id);
+const f2=n=>n==null?"None Yet":n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const sg=n=>(n>0?"+":n<0?"−":"")+Math.abs(n).toFixed(1);
+function chart(s){
+  const h=s.hist,W=1200,H=520,L=74,R=96,T=34,B=20,vals=h.flatMap(p=>[p[0],p[1]]).filter(v=>v!=null);
+  let lo=Math.min(...vals),hi=Math.max(...vals);if(hi-lo<30){const m=(hi+lo)/2;lo=m-15;hi=m+15}
+  const pad=(hi-lo)*.1;lo-=pad;hi+=pad;
+  const n=Math.max(h.length-1,1),x=i=>L+(W-L-R)*i/n,y=v=>T+(H-T-B)*(1-(v-lo)/(hi-lo));
+  let g="";
+  // session bands and labels
+  let start=0;
+  for(let i=1;i<=h.length;i++){
+    if(i===h.length||h[i][2]!==h[start][2]){
+      const r=h[start][2],x0=x(start),x1=x(Math.min(i,h.length-1)),night=r%2===1;
+      if(night)g+=`<rect x="${x0}" y="${T}" width="${Math.max(x1-x0,0)}" height="${H-T-B}" fill="#F1ECE0"/>`;
+      if(x1-x0>70)g+=`<text x="${(x0+x1)/2}" y="${T-12}" text-anchor="middle" font-size="16" fill="#586660">Day ${Math.floor(r/2)+1} ${night?"Night":"Cash"}</text>`;
+      start=i;
+    }
+  }
+  for(let i=0;i<5;i++){const v=lo+(hi-lo)*i/4;
+    g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#E5DDCD"/><text x="${L-10}" y="${y(v)+6}" text-anchor="end" font-size="17" fill="#586660">${Math.round(v).toLocaleString("en-US")}</text>`}
+  // news markers
+  s.news.forEach((nw,k)=>{const i=Math.min(Math.max(nw.i??0,0),h.length-1),c=nw.shock>=0?"#1B7A5A":"#B0432D";
+    g+=`<line x1="${x(i)}" x2="${x(i)}" y1="${T}" y2="${H-B}" stroke="${c}" stroke-dasharray="5 5" stroke-width="1.5"/>
+        <text x="${x(i)+6}" y="${T+20+(k%2)*20}" font-size="16" fill="${c}">${sg(nw.shock)}</text>`});
+  const line=k=>h.map((p,i)=>p[k]==null?null:x(i).toFixed(1)+","+y(p[k]).toFixed(1)).filter(Boolean).join(" ");
+  g+=`<polyline points="${line(0)}" fill="none" stroke="#A07A2C" stroke-width="3.5" stroke-linejoin="round"/>
+      <polyline points="${line(1)}" fill="none" stroke="#00857C" stroke-width="3.5" stroke-linejoin="round"/>`;
+  // end labels, nudged apart so they never overlap
+  const end=h[h.length-1];let ys=y(end[0]),yf=end[1]==null?null:y(end[1]);
+  if(yf!=null&&Math.abs(ys-yf)<24){const m=(ys+yf)/2,up=yf<=ys;yf=m+(up?-12:12);ys=m+(up?12:-12)}
+  g+=`<text x="${W-R+8}" y="${ys+6}" font-size="18" fill="#A07A2C">Spot</text>`;
+  if(yf!=null)g+=`<text x="${W-R+8}" y="${yf+6}" font-size="18" fill="#00857C">Futures</text>`;
+  $("chart").innerHTML=g;
+}
+function render(s){
+  const over=s.status==="settled",st={waiting:"Waiting To Start",open:"",paused:"Paused",settled:"Settled"}[s.status];
+  $("sub").textContent=s.status==="waiting"&&s.joinUrl?`Sign-up is open. Join at ${s.joinUrl}`
+    :over?`Game finished. Final settlement at ${f2(s.settle)} points.`
+    :`Day ${s.day} Of ${s.days}, ${s.session}${s.cashOpen?": Cash Market Open":": Cash Market Closed"}${st?" ("+st+")":""}`;
+  $("clocklabel").textContent=over?"Game":s.newsOut?"Session Ends In":"News In";
+  $("clock").textContent=over?"Finished":Math.ceil(s.newsOut?s.secondsLeft:s.newsIn)+" s";
+  $("last").textContent=f2(s.last);
+  const prem=s.last==null?null:s.last-s.fair;
+  $("lastnote").textContent=prem==null?"No trades yet":`${sg(prem)} points against fair futures`;
+  $("spotlabel").textContent=`Spot Index, ${over?"Final":s.cashOpen?"Live":"Last Close"} (Pts)`;
+  $("spot").textContent=f2(s.spot);
+  $("spotnote").textContent=over?"Opening print after the last night":s.cashOpen?"Prints live in the cash session":"Frozen until the next open";
+  $("fair").textContent=f2(s.fair);
+  $("vol").textContent=s.volume.toLocaleString("en-US");
+  $("people").textContent=`${s.people} ${s.people===1?"member":"members"} trading`;
+  chart(s);
+  $("news").innerHTML=s.news.slice().reverse().slice(0,6).map((n,i)=>`<div class="item ${i===0?"new":""}">
+    <div class="when">Day ${n.day}, ${n.session}</div>
+    <div class="move ${n.shock>=0?"up":"dn"}">${sg(n.shock)} Points</div>
+    <div class="note">${n.spot==null?"Cash market closed: spot gaps at the open":"Spot moved to "+f2(n.spot)}</div></div>`).join("")
+    ||`<div class="item"><div class="note">No news yet. One shock goes public midway through every session.</div></div>`;
+}
+const poll=()=>fetch("/api/overview").then(r=>r.json()).then(render).catch(()=>{});
+poll();setInterval(poll,1000);
+</script>
+</body>
+</html>
