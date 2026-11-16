@@ -877,22 +877,33 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    # On a hosting service (Render sets RENDER_EXTERNAL_URL and PORT) the game listens on the given port and
+    # shows the public link; the monitor then needs GAME_ADMIN_KEY, because no visitor is on this computer.
+    HOSTED = (os.environ.get("PUBLIC_URL") or os.environ.get("RENDER_EXTERNAL_URL") or "").rstrip("/")
     nums = [a for a in sys.argv[1:] if a.isdigit()]
-    port = int(nums[0]) if nums else 7848
-    host = "0.0.0.0" if "--lan" in sys.argv else "127.0.0.1"   # --lan lets others on the same network join
+    port = int(nums[0]) if nums else int(os.environ.get("PORT", 7848))
+    host = "0.0.0.0" if "--lan" in sys.argv or HOSTED else "127.0.0.1"   # --lan lets others on the same network join
     if "--fresh" not in sys.argv and load():
         print("Restored the last saved game (a running game comes back paused). Use --fresh to ignore it.")
     threading.Thread(target=loop, daemon=True).start()
-    print(f"Game master (this computer only):  http://localhost:{port}/monitor")
-    print(f"Projector view:                    http://localhost:{port}/overview")
-    if host == "0.0.0.0":
-        ips = lan_addresses()
-        JOIN_URL = f"http://{ips[0] if ips else '<this computer address>'}:{port}"
-        print(f"Players on the same network join:  {JOIN_URL}")
-        for ip in ips[1:]:
-            print(f"  (if that does not open, try     http://{ip}:{port})")
+    if HOSTED:
+        JOIN_URL = HOSTED
+        print(f"Hosted online. Players join:        {JOIN_URL}")
+        print(f"Projector view:                    {JOIN_URL}/overview")
+        print(f"Game master:                       {JOIN_URL}/monitor  (enter the GAME_ADMIN_KEY)")
+        if not ADMIN_KEY:
+            print("Warning: GAME_ADMIN_KEY is not set, so no one can open the game master monitor.")
     else:
-        print(f"Players: only this computer can open http://localhost:{port}. "
-              "Start with --lan to let other computers join.")
+        print(f"Game master (this computer only):  http://localhost:{port}/monitor")
+        print(f"Projector view:                    http://localhost:{port}/overview")
+        if host == "0.0.0.0":
+            ips = lan_addresses()
+            JOIN_URL = f"http://{ips[0] if ips else '<this computer address>'}:{port}"
+            print(f"Players on the same network join:  {JOIN_URL}")
+            for ip in ips[1:]:
+                print(f"  (if that does not open, try     http://{ip}:{port})")
+        else:
+            print(f"Players: only this computer can open http://localhost:{port}. "
+                  "Start with --lan to let other computers join.")
     ThreadingHTTPServer.daemon_threads = True
     ThreadingHTTPServer((host, port), Handler).serve_forever()

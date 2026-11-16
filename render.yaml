@@ -1,0 +1,13 @@
+# One-click hosting on Render's free plan: see "Play Online" in README.md.
+# Render runs the game server and gives it a public link anyone can open.
+services:
+  - type: web
+    name: trading-game
+    runtime: python
+    plan: free
+    buildCommand: python --version        # nothing to install: the game uses only Python's standard library
+    startCommand: python game_server.py $PORT
+    healthCheckPath: /api/overview
+    envVars:
+      - key: GAME_ADMIN_KEY               # the game master types this on /monitor; find it under Environment
+        generateValue: true
